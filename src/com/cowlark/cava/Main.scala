@@ -1,6 +1,9 @@
 package com.cowlark.cava
 import scala.collection.immutable.HashMap
 import soot.Scene
+import soot.CompilationDeathException
+import soot.PackManager
+import soot.options.Options
 
 object Main
 {
@@ -37,12 +40,37 @@ object Main
 		if (!inputfiles.isEmpty)
 			error("Extraneous files on command line (try --help)")
 		
+		val sourcepath =
+			if (inputjar != null) inputjar
+			else if (inputdir != null) inputdir
+			else null
+			
 		val filereader: FileSource =
 			if (inputjar != null) new JarFileSource(inputjar)
 			else if (inputdir != null) new DirectoryFileSource(inputdir)
 			else null
 		
-		for (f <- filereader)
-			System.out.println("Process file "+f)
+		try
+		{
+			val options = Options.v.parse(
+					Array[String](
+							"-pp",
+							"-soot-class-path", "/usr/share/java/scala-library.jar",
+							"-process-dir", sourcepath,
+							"-f", "jimple"
+						))
+						
+			Scene.v.loadNecessaryClasses
+			PackManager.v.runPacks
+		}
+		catch
+		{
+			case e: CompilationDeathException =>
+				error("Compilation failed: %s", e.getMessage)
+		}
+		
+//		
+//		for (f <- filereader)
+//			System.out.println("Process file "+f)
 	}
 }
