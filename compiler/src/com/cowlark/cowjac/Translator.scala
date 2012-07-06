@@ -125,9 +125,15 @@ object Translator
 		hps.print("\t")
 		translateModifier(method, hps)
 		
+		if (!method.isPrivate && !method.isStatic)
+			hps.print("virtual ")
+			
 		translateType(method.getReturnType, hps)
 		hps.print(" ")
-		hps.print(method.getName)
+		if (method.getName == "<init>")
+			hps.print("__init__")
+		else
+			hps.print(method.getName)
 		hps.print("(com::cowlark::cowjac::Context*")
 		
 		for (to <- method.getParameterTypes)
@@ -187,6 +193,18 @@ object Translator
 		
 		hps.print("\t/* Method declarations */\n")
 		cps.print("/* Method definitions */\n")
+		
+		/* Emit constructor and destructor */
+		
+		hps.print("\t")
+		hps.print(sootclass.getShortName)
+		hps.print("();\n")
+		hps.print("\tvirtual ~")
+		hps.print(sootclass.getShortName)
+		hps.print("();\n")
+				
+		/* Ordinary methods */
+				
 		for (m <- sootclass.getMethods)
 		{
 			translateMethodDeclaration(m, hps)
