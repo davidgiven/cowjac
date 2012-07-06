@@ -4,6 +4,20 @@ import java.io.PrintStream
 import scala.collection.immutable.HashMap
 import scala.collection.JavaConversions._
 import soot.SootField
+import soot.ClassMember
+import soot.Type
+import soot.TypeSwitch
+import soot.BooleanType
+import soot.DoubleType
+import soot.FloatType
+import soot.IntType
+import soot.LongType
+import soot.VoidType
+import soot.CharType
+import soot.ShortType
+import soot.ByteType
+import soot.RefLikeType
+import soot.RefType
 
 object Translator
 {
@@ -23,19 +37,77 @@ object Translator
 		return cxxname
 	}
 	
+	def translateModifier(cm: ClassMember, ps: PrintStream)
+	{
+		if (cm.isPrivate)
+			ps.print("private: ")
+		else if (cm.isProtected)
+			ps.print("protected: ")
+		else
+			ps.print("public: ")
+			
+		if (cm.isStatic)
+			ps.print("static ")			
+	}
+	
+	def translateType(t: Type, ps: PrintStream)
+	{
+		object TS extends TypeSwitch
+		{
+			override def caseVoidType(t: VoidType) = ps.print("void")
+			override def caseBooleanType(t: BooleanType) = ps.print("jboolean")
+			override def caseByteType(t: ByteType) = ps.print("jbyte")
+			override def caseCharType(t: CharType) = ps.print("jchar")
+			override def caseShortType(t: ShortType) = ps.print("jshort")
+			override def caseIntType(t: IntType) = ps.print("jint")
+			override def caseLongType(t: LongType) = ps.print("jlong")
+			override def caseFloatType(t: FloatType) = ps.print("jfloat")
+			override def caseDoubleType(t: DoubleType) = ps.print("jdouble")
+			
+			override def caseRefType(t: RefType)
+			{
+				ps.print(javaToCXX(t.getSootClass.getName))
+				ps.print("*")
+			}
+			
+			override def defaultCase(t: Type) = assert(false)
+		}
+		t.apply(TS)
+	}
+	
 	def translateFieldDeclaration(field: SootField, hps: PrintStream)
 	{
-		if (field.isPrivate)
-			hps.print("private: ")
-		else if (field.isProtected)
-			hps.print("protected: ")
-		else
-			hps.print("public: ")
-			
+		val isref = field.getType.isInstanceOf[RefLikeType]
+
+		translateModifier(field, hps)
+		if (isref)
+			hps.print("com::cowlark::cowjac::GlobalReference<")
+		translateType(field.getType, hps)
+		if (isref)
+			hps.print(">")
+		hps.print(" ")
+		hps.print(field.getName)
+		hps.print(";\n")
+	}
+	
+	def translateFieldDefinition(field: SootField, cps: PrintStream)
+	{
 		if (field.isStatic)
-			hps.print("static ")
+		{
+			val isref = field.getType.isInstanceOf[RefLikeType]
 			
-		hps.print(field.getSignature + "\n")
+			if (isref)
+				cps.print("com::cowlark::cowjac::GlobalReference<")
+			translateType(field.getType, cps)
+			if (isref)
+				cps.print(">")
+				
+			cps.print(" ")
+			cps.print(javaToCXX(field.getDeclaringClass.getName))
+			cps.print("::")
+			cps.print(field.getName)
+			cps.print(";\n")
+		}
 	}
 	
 	def translate(sootclass: SootClass, cps: PrintStream, hps: PrintStream)
@@ -69,7 +141,10 @@ object Translator
 		hps.print("\n{\n")
 		
 		for (f <- sootclass.getFields)
+		{
 			translateFieldDeclaration(f, hps)
+			translateFieldDefinition(f, cps)
+		}
 			
 		hps.print("};\n")
 		hps.print("\n")
