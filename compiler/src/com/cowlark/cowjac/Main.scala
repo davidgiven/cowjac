@@ -3,7 +3,9 @@ import scala.collection.immutable.HashMap
 import soot.Scene
 import soot.CompilationDeathException
 import soot.PackManager
+import soot.util.Chain
 import soot.options.Options
+import scala.collection.JavaConversions._
 
 object Main
 {
@@ -17,7 +19,10 @@ object Main
 			("d", "inputdir", true,  (s: String) => inputdir = s),
 			("m", "main",     true,  (s: String) => mainclassname = s)
 		)
-	
+
+	implicit def convertScalaListToJavaList(list: List[String]) =
+		java.util.Arrays.asList(list.toArray: _*)
+
 	private def help
 	{
 		System.out.println("No help yet.")
@@ -54,23 +59,26 @@ object Main
 			else if (inputdir != null) new DirectoryFileSource(inputdir)
 			else null
 
-		implicit def convertScalaListToJavaList(aList:List[String]) = java.util.Arrays.asList(aList.toArray: _*)
-
 		try
 		{
+			Options.v.set_soot_classpath(sourcepath)
 			Options.v.set_process_dir(List(sourcepath))
-			Options.v.set_whole_program(true)
+			Options.v.set_prepend_classpath(false)
+			//Options.v.set_whole_program(true)
 			Options.v.set_main_class(mainclassname)
 			Options.v.set_verbose(true)
+			Options.v.set_include_all(true)
 						
 			Scene.v.loadNecessaryClasses
 			PackManager.v.runPacks
 			
 			var mainclass = Scene.v.forceResolve(mainclassname, 0)
-			System.out.println("mainclass="+mainclass)
-			var cg = Scene.v.getCallGraph
-			System.out.println("cg="+cg)
+			//var cg = Scene.v.getCallGraph
 			
+			for (c <- Scene.v.getClasses)
+			{
+				Translator.translate(c, System.out, System.out)
+			}
 		}
 		catch
 		{

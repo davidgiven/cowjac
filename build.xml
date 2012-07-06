@@ -12,7 +12,7 @@
 	<path id="cowjac.classpath">
         <pathelement location="${scala.library.jar}"/>
 		<pathelement location="libs/soot-2.5.0.jar"/>
-		<pathelement location="bin/compiler"/>
+		<pathelement location="compiler/bin"/>
 	</path>
 
 	<path id="build.classpath">
@@ -40,11 +40,12 @@
 	<target name="build-compiler">
         <echo message="${ant.project.name}: ${ant.file}"/>
 
-    	<mkdir dir="bin"/>
-
-    	<scalac srcdir="src/compiler"
-    			destdir="bin/compiler" classpathref="build.classpath"
-    			scalacdebugging="true">
+    	<scalac
+    		srcdir="compiler/src"
+    		destdir="compiler/bin"
+    		classpathref="build.classpath"
+    		scalacdebugging="true"
+    		>
 			<include name="**/*.scala"/>
 			<include name="**/*.java"/>
    	    </scalac>
@@ -53,18 +54,19 @@
 	<target name="build-library">
         <echo message="${ant.project.name}: ${ant.file}"/>
 
-    	<mkdir dir="bin/lib"/>
+    	<mkdir dir="library/bin"/>
 
-        <javac debug="true" debuglevel="${debuglevel}" destdir="bin/lib" source="${source}" target="${target}">
-            <src path="src/lib"/>
+        <javac debug="true" debuglevel="${debuglevel}" destdir="library/bin"
+        		source="${source}" target="${target}">
+            <src path="library/src"/>
         </javac>
 	</target>
 		
 	<target name="run" depends="build">
 		<java classname="com.cowlark.cowjac.Main" classpathref="cowjac.classpath">
 			<arg value="cowjac"/>
-			<arg value="--inputdir=bin/lib"/>
-			<arg value="--main=java.lang.Object"/>
+			<arg value="--inputdir=library/bin"/>
+			<arg value="--main=test.Main"/>
 		</java>
 	</target>
 </project>
