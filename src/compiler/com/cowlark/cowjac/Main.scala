@@ -9,11 +9,13 @@ object Main
 {
 	private var inputjar: String = null
 	private var inputdir: String = null
+	private var mainclassname: String = null
 	
 	private val arguments: Array[ArgumentParser.Descriptor] = Array(
 			("h", "help",     false, (s: String) => help),
 			("j", "inputjar", true,  (s: String) => inputjar = s),
-			("d", "inputdir", true,  (s: String) => inputdir = s)
+			("d", "inputdir", true,  (s: String) => inputdir = s),
+			("m", "main",     true,  (s: String) => mainclassname = s)
 		)
 	
 	private def help
@@ -39,6 +41,8 @@ object Main
 			error("You cannot specify both an input jar and a directory.")
 		if (!inputfiles.isEmpty)
 			error("Extraneous files on command line (try --help)")
+		if (mainclassname == null)
+			error("You must specify the name of a main class")
 		
 		val sourcepath =
 			if (inputjar != null) inputjar
@@ -49,19 +53,24 @@ object Main
 			if (inputjar != null) new JarFileSource(inputjar)
 			else if (inputdir != null) new DirectoryFileSource(inputdir)
 			else null
-		
+
+		implicit def convertScalaListToJavaList(aList:List[String]) = java.util.Arrays.asList(aList.toArray: _*)
+
 		try
 		{
-			val options = Options.v.parse(
-					Array[String](
-							"-pp",
-							"-soot-class-path", "/usr/share/java/scala-library.jar",
-							"-process-dir", sourcepath,
-							"-f", "jimple"
-						))
+			Options.v.set_process_dir(List(sourcepath))
+			Options.v.set_whole_program(true)
+			Options.v.set_main_class(mainclassname)
+			Options.v.set_verbose(true)
 						
 			Scene.v.loadNecessaryClasses
 			PackManager.v.runPacks
+			
+			var mainclass = Scene.v.forceResolve(mainclassname, 0)
+			System.out.println("mainclass="+mainclass)
+			var cg = Scene.v.getCallGraph
+			System.out.println("cg="+cg)
+			
 		}
 		catch
 		{
