@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<project basedir="." default="build" name="cowjac">
+    <property environment="env"/>
+    <property name="ECLIPSE_HOME" value="/home/dg/apps/eclipse"/>
+    <property name="debuglevel" value="source,lines,vars"/>
+    <property name="target" value="1.6"/>
+    <property name="source" value="1.6"/>
+
+	<property name="scala.compiler.jar" value="/usr/share/java/scala-compiler.jar"/>
+	<property name="scala.library.jar" value="/usr/share/java/scala-library.jar"/>
+
+	<path id="cowjac.classpath">
+        <pathelement location="${scala.library.jar}"/>
+		<pathelement location="libs/soot-2.5.0.jar"/>
+		<pathelement location="bin/compiler"/>
+	</path>
+
+	<path id="build.classpath">
+        <pathelement location="${scala.library.jar}"/>
+        <pathelement location="${scala.compiler.jar}"/>
+		<pathelement location="libs/soot-2.5.0.jar"/>
+	</path>
+
+    <taskdef resource="scala/tools/ant/antlib.xml">
+      <classpath refid="build.classpath"/>
+    </taskdef>
+
+    <target name="init"/>
+
+    <target name="clean">
+        <delete dir="bin"/>
+    </target>
+
+    <target depends="clean" name="cleanall"/>
+
+    <target depends="build-compiler,build-library" name="build"/>
+
+    <target name="build-subprojects"/>
+
+	<target name="build-compiler">
+        <echo message="${ant.project.name}: ${ant.file}"/>
+
+    	<mkdir dir="bin"/>
+
+    	<scalac srcdir="src/compiler"
+    			destdir="bin/compiler" classpathref="build.classpath"
+    			scalacdebugging="true">
+			<include name="**/*.scala"/>
+			<include name="**/*.java"/>
+   	    </scalac>
+	</target>
+		
+	<target name="build-library">
+        <echo message="${ant.project.name}: ${ant.file}"/>
+
+    	<mkdir dir="bin/lib"/>
+
+        <javac debug="true" debuglevel="${debuglevel}" destdir="bin/lib" source="${source}" target="${target}">
+            <src path="src/lib"/>
+        </javac>
+	</target>
+		
+	<target name="run" depends="build">
+		<java classname="com.cowlark.cowjac.Main" classpathref="cowjac.classpath">
+			<arg value="cowjac"/>
+			<arg value="--inputdir=bin/lib"/>
+			<arg value="--main=java.lang.Object"/>
+		</java>
+	</target>
+</project>
