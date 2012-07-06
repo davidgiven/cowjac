@@ -1,4 +1,4 @@
-package com.cowlark.cava
+package com.cowlark.cowjac
 import java.io.File
 import java.util.jar.JarFile
 import java.util.Enumeration

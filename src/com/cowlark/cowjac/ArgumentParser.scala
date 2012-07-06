@@ -1,4 +1,4 @@
-package com.cowlark.cava
+package com.cowlark.cowjac
 import scala.collection.immutable.HashMap
 
 object ArgumentParser
