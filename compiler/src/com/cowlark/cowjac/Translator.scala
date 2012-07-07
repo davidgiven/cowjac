@@ -151,6 +151,56 @@ object Translator extends DependencyAnalyser
 		hps.print(";\n")
 	}
 	
+	def translateMethodDefinition(method: SootMethod, ps: PrintStream)
+	{
+		val body = method.getActiveBody
+		
+		translateType(method.getReturnType, ps)
+		ps.print(" ")
+		ps.print(javaToCXX(method.getDeclaringClass.getName))
+		ps.print("::")
+		if (method.getName == "<init>")
+			ps.print("__init__")
+		else
+			ps.print(method.getName)
+			
+		ps.print("(com::cowlark::cowjac::Context* context")
+		
+		for (i <- 0 until method.getParameterCount)
+		{
+			val t = method.getParameterType(i)
+			
+			ps.print(", ")
+			translateType(t, ps)
+			ps.print(" p")
+			ps.print(i)
+		}
+		
+		ps.print(")\n{\n")
+		
+		/* Declare locals. */
+		
+		for (local <- body.getLocals)
+		{
+			val t = local.getType
+			val isref = t.isInstanceOf[RefLikeType]
+			
+			ps.print("\t")
+			if (isref)
+				ps.print("com::cowlark::cowjac::GlobalReference<")
+			translateType(t, ps)
+			if (isref)
+				ps.print(">")
+			ps.print(" j")
+			ps.print(local.getName)
+			if (!isref)
+				ps.print(" = 0")
+			ps.print(";\n")
+		}
+		
+		ps.print("}\n\n")
+	}
+	
 	private def forwardDeclare(sootclass: SootClass, ps: PrintStream)
 	{
 		val nslevels = sootclass.getName.split('.')
@@ -174,6 +224,9 @@ object Translator extends DependencyAnalyser
 		
 		hps.print("#ifndef "+headername+"\n")
 		hps.print("#define "+headername+"\n")
+		
+		cps.print("#include \"cowjac.h\"\n")
+		cps.print("#include \"cowjacarray.h\"\n")
 		
 		hps.print("\n")
 		val dependencies = getDependencies(sootclass)
@@ -216,7 +269,7 @@ object Translator extends DependencyAnalyser
 		hps.print("\n{\n")
 		
 		hps.print("\t/* Field declarations */\n")
-		cps.print("/* Field definitions */\n")
+		cps.print("\n/* Field definitions */\n")
 		for (f <- sootclass.getFields)
 		{
 			translateFieldDeclaration(f, hps)
@@ -226,22 +279,24 @@ object Translator extends DependencyAnalyser
 		hps.print("\n")
 		
 		hps.print("\t/* Method declarations */\n")
-		cps.print("/* Method definitions */\n")
+		cps.print("\n/* Method definitions */\n")
 		
 		/* Emit constructor and destructor */
 		
-		hps.print("\t")
+		hps.print("\tpublic: ")
 		hps.print(sootclass.getShortName)
 		hps.print("();\n")
-		hps.print("\tvirtual ~")
+		hps.print("\tpublic: virtual ~")
 		hps.print(sootclass.getShortName)
-		hps.print("();\n")
+		hps.print("() {};\n")
 				
 		/* Ordinary methods */
 				
 		for (m <- sootclass.getMethods)
 		{
 			translateMethodDeclaration(m, hps)
+			if (m.hasActiveBody)
+				translateMethodDefinition(m, cps)
 		}
 		
 		hps.print("};\n")

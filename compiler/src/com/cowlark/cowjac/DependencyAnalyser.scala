@@ -37,12 +37,7 @@ trait DependencyAnalyser
 			
 			override def caseArrayType(t: ArrayType) = t.getElementType.apply(TS)
 			
-			override def caseRefType(t: RefType) =
-			{
-				val c = t.getSootClass
-				if (c != sootclass)
-					classes = classes + t.getSootClass
-			}
+			override def caseRefType(t: RefType) = classes += t.getSootClass
 			
 			override def defaultCase(t: Type) = assert(false)
 		}
