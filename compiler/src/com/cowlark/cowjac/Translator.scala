@@ -1,21 +1,30 @@
 package com.cowlark.cowjac
 import java.io.PrintStream
-
 import scala.collection.JavaConversions.asScalaBuffer
 import scala.collection.JavaConversions.collectionAsScalaIterable
 import scala.collection.immutable.HashMap
-
 import com.cowlark.cowjac.DependencyAnalyser
-
 import soot.jimple.AbstractJimpleValueSwitch
 import soot.jimple.AbstractStmtSwitch
-import soot.jimple.IdentityStmt
+import soot.jimple.AddExpr
 import soot.jimple.AssignStmt
+import soot.jimple.BinopExpr
 import soot.jimple.DefinitionStmt
-import soot.jimple.ReturnVoidStmt
-import soot.jimple.ReturnStmt
-import soot.jimple.InvokeStmt
+import soot.jimple.GeExpr
+import soot.jimple.IdentityStmt
 import soot.jimple.IfStmt
+import soot.jimple.IntConstant
+import soot.jimple.InvokeExpr
+import soot.jimple.InvokeStmt
+import soot.jimple.NewExpr
+import soot.jimple.ParameterRef
+import soot.jimple.ReturnStmt
+import soot.jimple.ReturnVoidStmt
+import soot.jimple.SpecialInvokeExpr
+import soot.jimple.StringConstant
+import soot.jimple.ThisRef
+import soot.jimple.VirtualInvokeExpr
+import soot.jimple.NullConstant
 import soot.toolkits.graph.BriefUnitGraph
 import soot.ArrayType
 import soot.BooleanType
@@ -25,6 +34,7 @@ import soot.ClassMember
 import soot.DoubleType
 import soot.FloatType
 import soot.IntType
+import soot.Local
 import soot.LongType
 import soot.RefLikeType
 import soot.RefType
@@ -35,18 +45,7 @@ import soot.SootMethod
 import soot.Type
 import soot.TypeSwitch
 import soot.VoidType
-import soot.Local
-import soot.jimple.ThisRef
-import soot.jimple.NewExpr
-import soot.jimple.AddExpr
-import soot.jimple.GeExpr
-import soot.jimple.BinopExpr
-import soot.jimple.VirtualInvokeExpr
-import soot.jimple.SpecialInvokeExpr
-import soot.jimple.InvokeExpr
-import soot.jimple.ParameterRef
-import soot.jimple.IntConstant
-import soot.jimple.StringConstant
+import soot.jimple.toolkits.annotation.tags.NullCheckTag
 
 object Translator extends DependencyAnalyser
 {
@@ -61,7 +60,7 @@ object Translator extends DependencyAnalyser
 		if (n != None)
 			return n.get
 		
-		val cxxname = reformName(jname, "::")
+		val cxxname = "::" + reformName(jname, "::")
 		namecache = namecache + (jname -> cxxname)
 		return cxxname
 	}
@@ -95,9 +94,9 @@ object Translator extends DependencyAnalyser
 			
 			override def caseArrayType(t: ArrayType)
 			{
-				ps.print("com::cowlark::cowjac::Array<")
+				ps.print("com::cowlark::cowjac::Array< ")
 				t.getElementType.apply(TS)
-				ps.print(">*")
+				ps.print(" >*")
 			}
 			
 			override def caseRefType(t: RefType)
@@ -118,10 +117,10 @@ object Translator extends DependencyAnalyser
 		hps.print("\t")
 		translateModifier(field, hps)
 		if (isref)
-			hps.print("com::cowlark::cowjac::GlobalReference<")
+			hps.print("com::cowlark::cowjac::GlobalReference< ")
 		translateType(field.getType, hps)
 		if (isref)
-			hps.print(">")
+			hps.print(" >")
 		hps.print(" ")
 		hps.print(field.getName)
 		hps.print(";\n")
@@ -134,10 +133,10 @@ object Translator extends DependencyAnalyser
 			val isref = field.getType.isInstanceOf[RefLikeType]
 			
 			if (isref)
-				cps.print("com::cowlark::cowjac::GlobalReference<")
+				cps.print("com::cowlark::cowjac::GlobalReference< ")
 			translateType(field.getType, cps)
 			if (isref)
-				cps.print(">")
+				cps.print(" >")
 				
 			cps.print(" ")
 			cps.print(javaToCXX(field.getDeclaringClass.getName))
@@ -287,6 +286,7 @@ object Translator extends DependencyAnalyser
 		
 		var labels = HashMap.empty[soot.Unit, Integer]
 		val ug = new BriefUnitGraph(body)
+		var notnull = false
 		
 		def label(unit: soot.Unit): String =
 		{
@@ -318,6 +318,9 @@ object Translator extends DependencyAnalyser
 				ps.print("(java::lang::String*)0 /* string constant */")
 			}
 			
+			override def caseNullConstant(s: NullConstant) =
+				ps.print("0")
+				
 			override def caseThisRef(v: ThisRef) =
 				ps.print("this")
 				
@@ -367,7 +370,12 @@ object Translator extends DependencyAnalyser
 			
 			override def caseVirtualInvokeExpr(v: VirtualInvokeExpr) =
 			{
+				if (!notnull)
+					ps.print("com::cowlark::cowjac::NullCheck(")
 				v.getBase.apply(VS)
+				if (!notnull)
+					ps.print(")")
+					
 				ps.print("->")
 				ps.print(v.getMethodRef.name)
 				parameters(v)
@@ -375,7 +383,12 @@ object Translator extends DependencyAnalyser
 				
 			override def caseSpecialInvokeExpr(v: SpecialInvokeExpr) =
 			{
+				if (!notnull)
+					ps.print("com::cowlark::cowjac::NullCheck(")
 				v.getBase.apply(VS)
+				if (!notnull)
+					ps.print(")")
+					
 				ps.print("->")
 				ps.print(javaToCXX(v.getMethodRef.declaringClass.getName))
 				ps.print("::")
@@ -452,6 +465,8 @@ object Translator extends DependencyAnalyser
 				ps.print(":\n")
 			}
 
+			val tag = unit.getTag("NullCheckTag").asInstanceOf[NullCheckTag]
+			notnull = (tag != null) && !tag.needCheck()
 			unit.apply(SS)
 					
 			oldunit = unit

@@ -94,6 +94,17 @@ public:
 	}
 };
 
+/* Check for and throw a NullPointerException. */
+
+extern void throwNullPointerException();
+
+template <class T> T NullCheck(T t)
+{
+	if (!t)
+		throwNullPointerException();
+	return t;
+}
+
 }}}
 
 #endif

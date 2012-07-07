@@ -93,8 +93,11 @@ object Main
 			Options.v.set_include_all(true)
 			Options.v.set_output_format(Options.output_format_j)
 			Options.v.setPhaseOption("jb.a", "only-stack-locals:false") 
-			Options.v.setPhaseOption("jb.lp", "enabled:true") 
-			Options.v.setPhaseOption("jb.tt", "enabled:true") 
+			Options.v.setPhaseOption("jb.lp", "enabled:true") /* fold locals */
+			Options.v.setPhaseOption("jb.tt", "enabled:true") /* reuse locals */
+			Options.v.setPhaseOption("jap.npc", "enabled:true") /* detect non-null pointers */
+			Options.v.setPhaseOption("jap.abc", "enabled:true") /* array bounds checking */
+			Options.v.setPhaseOption("jap.abc", "with-all:true") /* array bounds checking */
 
 			Scene.v.loadNecessaryClasses
 			PackManager.v.runPacks
