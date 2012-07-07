@@ -11,21 +11,39 @@ object Main
 {
 	private var inputjar: String = null
 	private var inputdir: String = null
+	private var outputdir: String = null
 	private var mainclassname: String = null
 	
-	private val arguments: Array[ArgumentParser.Descriptor] = Array(
-			("h", "help",     false, (s: String) => help),
-			("j", "inputjar", true,  (s: String) => inputjar = s),
-			("d", "inputdir", true,  (s: String) => inputdir = s),
-			("m", "main",     true,  (s: String) => mainclassname = s)
-		)
-
+	private val argumentParser = new ArgumentParser(
+			Array(
+				ArgumentParser.Descriptor("h", "help", false,
+						"Report usage information",
+						(s: String) => help),
+				ArgumentParser.Descriptor("j", "inputjar", true,
+						"Read input classes from jarfile",
+						(s: String) => inputjar = s),
+				ArgumentParser.Descriptor("d", "inputdir", true,
+						"Read input classes from directory",
+						(s: String) => inputdir = s),
+				ArgumentParser.Descriptor("o", "outputdir", true,
+						"Write output to directory",
+						(s: String) => outputdir = s),
+				ArgumentParser.Descriptor("m", "main", true,
+						"Specify main class",
+						(s: String) => mainclassname = s)
+			))
+	
 	implicit def convertScalaListToJavaList(list: List[String]) =
 		java.util.Arrays.asList(list.toArray: _*)
 
 	private def help
 	{
-		System.out.println("No help yet.")
+		System.out.print("cowjac Java to C++ compiler\n")
+		System.out.print("© 2012 David Given\n")
+		System.out.print("\nSyntax: cowjac [<options>...]\n")
+		System.out.print("\nOptions:\n")
+		argumentParser.usage(System.out)
+		
 		System.exit(0)
 	}
 	
@@ -37,13 +55,14 @@ object Main
 	
 	def main(argv: Array[String])
 	{
-		val parser = new ArgumentParser(arguments)
-		val inputfiles = parser.wrappedProcess(argv, error(_, _))
+		val inputfiles = argumentParser.wrappedProcess(argv, error(_, _))
 		
 		if ((inputjar == null) && (inputdir == null))
 			error("You must specify an input jar or directory.")
 		if ((inputjar != null) && (inputdir != null))
 			error("You cannot specify both an input jar and a directory.")
+		if (outputdir == null)
+			error("You must specify an output directory.")
 		if (!inputfiles.isEmpty)
 			error("Extraneous files on command line (try --help)")
 		if (mainclassname == null)
@@ -86,9 +105,5 @@ object Main
 			case e: CompilationDeathException =>
 				error("Compilation failed: %s", e.getMessage)
 		}
-		
-//		
-//		for (f <- filereader)
-//			System.out.println("Process file "+f)
 	}
 }

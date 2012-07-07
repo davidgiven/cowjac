@@ -1,9 +1,11 @@
 package com.cowlark.cowjac
 import scala.collection.immutable.HashMap
+import java.io.PrintStream
 
 object ArgumentParser
 {
-	type Descriptor = (String, String, Boolean, (String)=>Unit)
+	case class Descriptor(shortName: String, longName: String,
+			hasParameter: Boolean, help: String, cb: (String)=>Unit)
 }
 
 class ArgumentParserException extends Exception
@@ -32,10 +34,10 @@ class ArgumentParser(arguments: Array[ArgumentParser.Descriptor])
 	
 	for (a <- arguments)
 	{
-		if (a._1 != null)
-			shortNames = shortNames + (a._1 -> a)
-		if (a._2 != null)
-			longNames = longNames + (a._2 -> a)
+		if (a.shortName != null)
+			shortNames += (a.shortName -> a)
+		if (a.longName != null)
+			longNames += (a.longName -> a)
 	}
 	
 	private def doarg(map: Map[String, ArgumentParser.Descriptor],
@@ -45,14 +47,30 @@ class ArgumentParser(arguments: Array[ArgumentParser.Descriptor])
 			throw new UnrecognisedArgument(arg)
 		
 		val descriptor = map(arg)			
-		if (descriptor._3 && (param == null))
+		if (descriptor.hasParameter && (param == null))
 			throw new MissingParameterToArgument(arg)
-		if (!descriptor._3 && (param != null))
+		if (!descriptor.hasParameter && (param != null))
 			throw new ExtraneousParameterToArgument(arg)
 		
-		descriptor._4(param)
+		descriptor.cb(param)
 		
-		if (descriptor._3) 1 else 0
+		if (descriptor.hasParameter) 1 else 0
+	}
+	
+	def usage(ps: PrintStream)
+	{
+		for (a <- arguments)
+		{
+			var sb = new StringBuilder
+			
+			sb ++= (if (a.shortName.isEmpty) "  " else "-"+a.shortName)
+			sb ++= (if (a.shortName.isEmpty) " " else if (a.hasParameter) "X" else " ")
+			sb ++= "   --"
+			sb ++= a.longName
+			if (a.hasParameter) sb ++= "=X"
+
+			ps.println(String.format("  %-20s  %s", sb, a.help))
+		}
 	}
 	
 	def process(argv: IndexedSeq[String]): Seq[String] =
