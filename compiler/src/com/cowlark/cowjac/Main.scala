@@ -6,6 +6,10 @@ import soot.PackManager
 import soot.util.Chain
 import soot.options.Options
 import scala.collection.JavaConversions._
+import java.io.File
+import java.io.PrintStream
+import java.io.BufferedOutputStream
+import java.io.FileOutputStream
 
 object Main
 {
@@ -95,9 +99,24 @@ object Main
 			var mainclass = Scene.v.forceResolve(mainclassname, 0)
 			//var cg = Scene.v.getCallGraph
 			
+			new File(outputdir).mkdirs
+			
 			for (c <- Scene.v.getClasses)
 			{
-				Translator.translate(c, System.out, System.out)
+				System.out.println("Writing "+c.getName+"...")
+						
+				val hfile = new File(outputdir, c.getName + ".h")
+				val ccfile = new File(outputdir, c.getName + ".cc")
+				
+				val hstream = new PrintStream(new BufferedOutputStream(
+						new FileOutputStream(hfile)))
+				var ccstream = new PrintStream(new BufferedOutputStream(
+						new FileOutputStream(ccfile)))
+				
+				Translator.translate(c, ccstream, hstream)
+				
+				hstream.close
+				ccstream.close
 			}
 		}
 		catch
