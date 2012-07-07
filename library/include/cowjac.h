@@ -17,26 +17,12 @@ namespace com {
 namespace cowlark {
 namespace cowjac {
 
-class ContainsReferences;
-class BaseGlobalReference;
-
-/* The per-thread runtime context. */
-
-class Context
-{
-public:
-	static Context* getCurrentContext();
-
-public:
-	BaseGlobalReference* _firstReference;
-};
-
 /* Indicates that an object contains object references. */
 
 class ContainsReferences
 {
 public:
-	virtual void __gc(int mode) = 0;
+	virtual void ___mark() = 0;
 };
 
 /* All Java classes inherit from this. */
@@ -46,7 +32,29 @@ class Object : public ContainsReferences
 public:
 	Object();
 
-	void __gc(int mode) {}
+	void ___mark() {}
+};
+
+/* A stack frame. */
+
+class Stackframe : public ContainsReferences
+{
+public:
+	Stackframe(Stackframe* parent):
+		_parent(parent),
+		_next(NULL)
+	{
+		parent->_next = this;
+	}
+
+	~Stackframe()
+	{
+		_parent->_next = NULL;
+	}
+
+private:
+	Stackframe* _parent;
+	Stackframe* _next;
 };
 
 /* An object reference root. */
@@ -54,31 +62,10 @@ public:
 class BaseGlobalReference : public ContainsReferences
 {
 public:
-	BaseGlobalReference(Context* context):
-			_context(context),
-			_next(context->_firstReference),
-			_prev(NULL)
-	{
-		context->_firstReference = this;
-	}
+	BaseGlobalReference();
+	~BaseGlobalReference();
 
-	~BaseGlobalReference()
-	{
-		if (_context->_firstReference == this)
-			_context->_firstReference = _next;
-
-		if (_prev)
-			_prev->_next = _next;
-		if (_next)
-			_next->_prev = _prev;
-	}
-
-	void __gc(int mode);
-
-private:
-	BaseGlobalReference* _next;
-	BaseGlobalReference* _prev;
-	Context* _context;
+	void ___mark();
 
 protected:
 	Object* _data;
@@ -87,8 +74,7 @@ protected:
 template <class T> class GlobalReference : public BaseGlobalReference
 {
 public:
-	GlobalReference(Context* context): BaseGlobalReference(context) {}
-	GlobalReference(): BaseGlobalReference(Context::getCurrentContext()) {}
+	GlobalReference(): BaseGlobalReference() {}
 	~GlobalReference() {}
 
 	template <class S> GlobalReference<T>& operator = (S val)

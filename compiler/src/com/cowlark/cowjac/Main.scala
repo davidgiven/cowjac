@@ -92,7 +92,10 @@ object Main
 			Options.v.set_verbose(true)
 			Options.v.set_include_all(true)
 			Options.v.set_output_format(Options.output_format_j)
-						
+			Options.v.setPhaseOption("jb.a", "only-stack-locals:false") 
+			Options.v.setPhaseOption("jb.lp", "enabled:true") 
+			Options.v.setPhaseOption("jb.tt", "enabled:true") 
+
 			Scene.v.loadNecessaryClasses
 			PackManager.v.runPacks
 			

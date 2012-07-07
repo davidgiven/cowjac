@@ -158,10 +158,10 @@ object Translator extends DependencyAnalyser
 		translateType(method.getReturnType, hps)
 		hps.print(" ")
 		if (method.getName == "<init>")
-			hps.print("__init")
+			hps.print("___init")
 		else
 			hps.print(method.getName)
-		hps.print("(com::cowlark::cowjac::Context*")
+		hps.print("(com::cowlark::cowjac::Stackframe*")
 		
 		for (to <- method.getParameterTypes)
 		{
@@ -187,11 +187,11 @@ object Translator extends DependencyAnalyser
 		ps.print(javaToCXX(method.getDeclaringClass.getName))
 		ps.print("::")
 		if (method.getName == "<init>")
-			ps.print("__init")
+			ps.print("___init")
 		else
 			ps.print(method.getName)
 			
-		ps.print("(com::cowlark::cowjac::Context* context")
+		ps.print("(com::cowlark::cowjac::Stackframe* parentFrame")
 		
 		for (i <- 0 until method.getParameterCount)
 		{
@@ -205,24 +205,82 @@ object Translator extends DependencyAnalyser
 		
 		ps.print(")\n{\n")
 		
-		/* Declare locals. */
+		/* Declare stackframe structure. */
+
+		val hasFrame = body.getLocals.exists(
+				local => local.getType.isInstanceOf[RefLikeType])
+
+		if (hasFrame)
+		{
+			ps.print("\tstruct frame : public com::cowlark::cowjac::Stackframe\n")
+			ps.print("\t{\n");
+			ps.print("\t\tframe(com::cowlark::cowjac::Stackframe* p):\n")
+			ps.print("\t\t\tcom::cowlark::cowjac::Stackframe(p)\n")
+			
+			for (local <- body.getLocals)
+			{
+				val t = local.getType
+				if (t.isInstanceOf[RefLikeType])
+				{
+					ps.print("\t\t\t, f")
+					ps.print(local.getName)
+					ps.print("(0)\n")
+				}
+			}
+			
+			ps.print("\t\t{}\n")
+			ps.print("\n")
+			
+			for (local <- body.getLocals)
+			{
+				val t = local.getType
+				if (t.isInstanceOf[RefLikeType])
+				{
+					ps.print("\t\t")
+					translateType(t, ps)
+	
+					ps.print(" f")
+					ps.print(local.getName)
+					ps.print(";\n")
+				}
+			}
+
+			ps.print("\n")
+			ps.print("\t\tvoid ___mark()\n")
+			ps.print("\t\t{\n")
+			
+			for (local <- body.getLocals)
+			{
+				val t = local.getType
+				if (t.isInstanceOf[RefLikeType])
+				{
+					ps.print("\t\t\tif (f")
+					ps.print(local.getName)
+					ps.print(") f")
+					ps.print(local.getName)
+					ps.print("->___mark();\n")
+				}
+			}
+
+			ps.print("\t\t}\n")
+			ps.print("\t};\n");
+			ps.print("\tframe F(parentFrame);\n")
+			ps.print("\n")
+		}
+		
+		/* Declare locals that don't need to go in the frame. */
 		
 		for (local <- body.getLocals)
 		{
 			val t = local.getType
-			val isref = t.isInstanceOf[RefLikeType]
-			
-			ps.print("\t")
-			if (isref)
-				ps.print("com::cowlark::cowjac::GlobalReference<")
-			translateType(t, ps)
-			if (isref)
-				ps.print(">")
-			ps.print(" j")
-			ps.print(local.getName)
-			if (!isref)
-				ps.print(" = 0")
-			ps.print(";\n")
+			if (!t.isInstanceOf[RefLikeType])
+			{
+				ps.print("\t")
+				translateType(t, ps)
+				ps.print(" j")
+				ps.print(local.getName)
+				ps.print(" = 0;\n")
+			}
 		}
 		
 		/* The method body itself. */
@@ -265,7 +323,10 @@ object Translator extends DependencyAnalyser
 				
 			override def caseLocal(v: Local) =
 			{
-				ps.print("j")
+				if (v.getType.isInstanceOf[RefLikeType])
+					ps.print("F.f")
+				else
+					ps.print("j")
 				ps.print(v.getName)
 			}
 			
@@ -293,7 +354,7 @@ object Translator extends DependencyAnalyser
 			
 			private def parameters(v: InvokeExpr)
 			{
-				ps.print("(context")
+				ps.print("(&F")
 				
 				for (arg <- v.getArgs)
 				{
@@ -319,7 +380,7 @@ object Translator extends DependencyAnalyser
 				ps.print(javaToCXX(v.getMethodRef.declaringClass.getName))
 				ps.print("::")
 				if (v.getMethodRef.name == "<init>")
-					ps.print("__init")
+					ps.print("___init")
 				else
 					ps.print(v.getMethodRef.name)
 					
