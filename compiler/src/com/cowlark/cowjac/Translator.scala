@@ -1,25 +1,52 @@
 package com.cowlark.cowjac
-import soot.SootClass
 import java.io.PrintStream
+
+import scala.collection.JavaConversions.asScalaBuffer
+import scala.collection.JavaConversions.collectionAsScalaIterable
 import scala.collection.immutable.HashMap
-import scala.collection.JavaConversions._
-import soot.SootField
-import soot.ClassMember
-import soot.Type
-import soot.TypeSwitch
+
+import com.cowlark.cowjac.DependencyAnalyser
+
+import soot.jimple.AbstractJimpleValueSwitch
+import soot.jimple.AbstractStmtSwitch
+import soot.jimple.IdentityStmt
+import soot.jimple.AssignStmt
+import soot.jimple.DefinitionStmt
+import soot.jimple.ReturnVoidStmt
+import soot.jimple.ReturnStmt
+import soot.jimple.InvokeStmt
+import soot.jimple.IfStmt
+import soot.toolkits.graph.BriefUnitGraph
+import soot.ArrayType
 import soot.BooleanType
+import soot.ByteType
+import soot.CharType
+import soot.ClassMember
 import soot.DoubleType
 import soot.FloatType
 import soot.IntType
 import soot.LongType
-import soot.VoidType
-import soot.CharType
-import soot.ShortType
-import soot.ByteType
 import soot.RefLikeType
 import soot.RefType
+import soot.ShortType
+import soot.SootClass
+import soot.SootField
 import soot.SootMethod
-import soot.ArrayType
+import soot.Type
+import soot.TypeSwitch
+import soot.VoidType
+import soot.Local
+import soot.jimple.ThisRef
+import soot.jimple.NewExpr
+import soot.jimple.AddExpr
+import soot.jimple.GeExpr
+import soot.jimple.BinopExpr
+import soot.jimple.VirtualInvokeExpr
+import soot.jimple.SpecialInvokeExpr
+import soot.jimple.InvokeExpr
+import soot.jimple.ParameterRef
+import soot.jimple.IntConstant
+import soot.jimple.StringConstant
 
 object Translator extends DependencyAnalyser
 {
@@ -131,7 +158,7 @@ object Translator extends DependencyAnalyser
 		translateType(method.getReturnType, hps)
 		hps.print(" ")
 		if (method.getName == "<init>")
-			hps.print("__init__")
+			hps.print("__init")
 		else
 			hps.print(method.getName)
 		hps.print("(com::cowlark::cowjac::Context*")
@@ -160,7 +187,7 @@ object Translator extends DependencyAnalyser
 		ps.print(javaToCXX(method.getDeclaringClass.getName))
 		ps.print("::")
 		if (method.getName == "<init>")
-			ps.print("__init__")
+			ps.print("__init")
 		else
 			ps.print(method.getName)
 			
@@ -196,6 +223,177 @@ object Translator extends DependencyAnalyser
 			if (!isref)
 				ps.print(" = 0")
 			ps.print(";\n")
+		}
+		
+		/* The method body itself. */
+		
+		var labels = HashMap.empty[soot.Unit, Integer]
+		val ug = new BriefUnitGraph(body)
+		
+		def label(unit: soot.Unit): String =
+		{
+			val s = labels.get(unit)
+			if (s != None)
+				return "L" + s.get
+
+			val i = labels.size
+			labels += (unit -> i)
+			
+			return "L" + i
+		}
+
+		object NS extends TypeSwitch
+		{
+			override def caseRefType(t: RefType) =
+				ps.print(javaToCXX(t.getSootClass.getName))
+			
+			override def defaultCase(t: Type) = assert(false)
+		}
+
+		object VS extends AbstractJimpleValueSwitch
+		{
+			override def caseIntConstant(s: IntConstant) =
+				ps.print(s.value)
+			
+			override def caseStringConstant(s: StringConstant) =
+			{
+				ps.print("(java::lang::String*)0 /* string constant */")
+			}
+			
+			override def caseThisRef(v: ThisRef) =
+				ps.print("this")
+				
+			override def caseLocal(v: Local) =
+			{
+				ps.print("j")
+				ps.print(v.getName)
+			}
+			
+			override def caseParameterRef(v: ParameterRef) =
+			{
+				ps.print("p")
+				ps.print(v.getIndex)
+			}
+			
+			override def caseAddExpr(v: AddExpr) = caseBinopExpr(v)
+			override def caseGeExpr(v: GeExpr) = caseBinopExpr(v)
+			
+			def caseBinopExpr(v: BinopExpr) =
+			{
+				v.getOp1.apply(VS)
+				ps.print(v.getSymbol)
+				v.getOp2.apply(VS)
+			}
+			
+			override def caseNewExpr(v: NewExpr) =
+			{
+				ps.print("new ")
+				v.getType.apply(NS)
+			}
+			
+			private def parameters(v: InvokeExpr)
+			{
+				ps.print("(context")
+				
+				for (arg <- v.getArgs)
+				{
+					ps.print(", ")
+					arg.apply(VS)
+				}
+				
+				ps.print(")")
+			}
+			
+			override def caseVirtualInvokeExpr(v: VirtualInvokeExpr) =
+			{
+				v.getBase.apply(VS)
+				ps.print("->")
+				ps.print(v.getMethodRef.name)
+				parameters(v)
+			}
+				
+			override def caseSpecialInvokeExpr(v: SpecialInvokeExpr) =
+			{
+				v.getBase.apply(VS)
+				ps.print("->")
+				ps.print(javaToCXX(v.getMethodRef.declaringClass.getName))
+				ps.print("::")
+				if (v.getMethodRef.name == "<init>")
+					ps.print("__init")
+				else
+					ps.print(v.getMethodRef.name)
+					
+				parameters(v)
+			}
+				
+			override def defaultCase(s: Any) = assert(false)
+		}
+		
+		object SS extends AbstractStmtSwitch
+		{
+			override def caseIdentityStmt(s: IdentityStmt) = caseDefinitionStmt(s)
+			override def caseAssignStmt(s: AssignStmt) = caseDefinitionStmt(s)
+			
+			override def caseReturnStmt(s: ReturnStmt) =
+			{
+				ps.print("\treturn ")
+				s.getOp.apply(VS)
+				ps.print(";\n")
+			}
+			
+			override def caseReturnVoidStmt(s: ReturnVoidStmt) =
+				ps.print("\treturn;\n")
+			
+			override def caseIfStmt(s: IfStmt) =
+			{
+				ps.print("\tif (")
+				s.getCondition.apply(VS)
+				ps.print(") goto ")
+				ps.print(label(s.getTarget))
+				ps.print(";\n")
+			}
+				
+			override def caseInvokeStmt(s: InvokeStmt) =
+			{
+				ps.print("\t")
+				s.getInvokeExpr.apply(VS)
+				ps.print(";\n")
+			}
+				
+			def caseDefinitionStmt(s: DefinitionStmt) =
+			{
+				ps.print("\t")
+				s.getLeftOp.apply(VS)
+				ps.print(" = ")
+				s.getRightOp.apply(VS)
+				ps.print(";\n")
+			}
+			
+			override def defaultCase(s: Any) = assert(false)
+		}
+		
+		var oldunit: soot.Unit = null
+		for (unit <- body.getUnits)
+		{
+			/* If this is a target of a jump, then we need to add a label.
+			 * An instruction is not a jump target if the only way to it is
+			 * from the preceding instruciton. */
+			
+			val junction = 
+				if ((ug.getPredsOf(unit).size == 1) && (ug.getPredsOf(unit).get(0) == oldunit))
+					false
+				else
+					true
+				
+			if (junction)
+			{
+				ps.print(label(unit))
+				ps.print(":\n")
+			}
+
+			unit.apply(SS)
+					
+			oldunit = unit
 		}
 		
 		ps.print("}\n\n")

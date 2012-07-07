@@ -1,6 +1,7 @@
 #ifndef COWJAC_H
 #define COWJAC_H
 
+#include <stdlib.h>
 #include <stdint.h>
 #include <list>
 typedef bool jboolean;
@@ -35,7 +36,7 @@ public:
 class ContainsReferences
 {
 public:
-	virtual void __gc(int mode);
+	virtual void __gc(int mode) = 0;
 };
 
 /* All Java classes inherit from this. */
@@ -44,6 +45,8 @@ class Object : public ContainsReferences
 {
 public:
 	Object();
+
+	void __gc(int mode) {}
 };
 
 /* An object reference root. */
@@ -54,7 +57,7 @@ public:
 	BaseGlobalReference(Context* context):
 			_context(context),
 			_next(context->_firstReference),
-			_prev(0)
+			_prev(NULL)
 	{
 		context->_firstReference = this;
 	}
@@ -69,6 +72,8 @@ public:
 		if (_next)
 			_next->_prev = _prev;
 	}
+
+	void __gc(int mode);
 
 private:
 	BaseGlobalReference* _next;
@@ -93,6 +98,11 @@ public:
 	}
 
 	operator T () const
+	{
+		return (T) _data;
+	}
+
+	T operator -> () const
 	{
 		return (T) _data;
 	}

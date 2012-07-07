@@ -91,7 +91,7 @@ object Main
 			Options.v.set_main_class(mainclassname)
 			Options.v.set_verbose(true)
 			Options.v.set_include_all(true)
-			Options.v.set_output_format(Options.output_format_jimple)
+			Options.v.set_output_format(Options.output_format_j)
 						
 			Scene.v.loadNecessaryClasses
 			PackManager.v.runPacks

@@ -66,6 +66,7 @@
 		<java classname="com.cowlark.cowjac.Main" classpathref="cowjac.classpath">
 			<arg value="cowjac"/>
 			<arg value="--inputdir=library/bin"/>
+			<arg value="--outputdir=cowjacOutput"/>
 			<arg value="--main=test.Main"/>
 		</java>
 	</target>
