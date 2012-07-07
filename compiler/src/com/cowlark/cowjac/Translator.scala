@@ -21,7 +21,7 @@ import soot.RefType
 import soot.SootMethod
 import soot.ArrayType
 
-object Translator
+object Translator extends DependencyAnalyser
 {
 	private var namecache = HashMap[String, String]()
 	
@@ -151,6 +151,21 @@ object Translator
 		hps.print(";\n")
 	}
 	
+	private def forwardDeclare(sootclass: SootClass, ps: PrintStream)
+	{
+		val nslevels = sootclass.getName.split('.')
+		for (i <- 0 to nslevels.length-2)
+			ps.print("namespace "+nslevels(i)+" { ")
+		
+		ps.print("class ")
+		ps.print(sootclass.getJavaStyleName)
+		ps.print("; ")
+		
+		for (i <- 0 to nslevels.length-2)
+			ps.print("}")
+		ps.print("\n")
+	}
+	
 	def translate(sootclass: SootClass, cps: PrintStream, hps: PrintStream)
 	{
 		val jname = sootclass.getName()
@@ -161,23 +176,42 @@ object Translator
 		hps.print("#define "+headername+"\n")
 		
 		hps.print("\n")
+		val dependencies = getDependencies(sootclass)
+		for (d <- dependencies)
+		{
+			forwardDeclare(d, hps)
+			cps.print("#include \"")
+			cps.print(d.getName)
+			cps.print(".h\"\n")
+		}
+		
+		hps.print("\n")
 		val nslevels = jname.split('.')
 		for (i <- 0 to nslevels.length-2)
 			hps.print("namespace "+nslevels(i)+" {\n")
 		
 		hps.print("\n")
-		hps.print("class " + sootclass.getJavaStyleName)
 		
 		var superclasses = Vector.empty[SootClass]
 		if (jname != "java.lang.Object")
 			superclasses = superclasses :+ sootclass.getSuperclass
+
+		for (s <- superclasses)
+		{
+			hps.print("#include \"")
+			hps.print(s.getName)
+			hps.print(".h\"\n")
+		}
 		
+		hps.print("class " + sootclass.getJavaStyleName)
 		if (!superclasses.isEmpty)
 		{
 			val superclassnames = superclasses.map((c: SootClass) => "public " + javaToCXX(c.getName))
 			hps.print(" : ")
 			hps.print(superclassnames.reduceLeft(_ + ", " + _))
 		}
+		else
+			hps.print(" : public com::cowlark::cowjac::Object")
 		
 		hps.print("\n{\n")
 		

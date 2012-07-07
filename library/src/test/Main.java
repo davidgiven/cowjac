@@ -7,6 +7,7 @@ public abstract class Main
 	protected double i_protected;
 	char i_default;
 	static Main i_static;
+	Object obj;
 	
 	private void m_private() {}
 	public void m_public() {}
