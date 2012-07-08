@@ -17,6 +17,7 @@ object Main
 	private var inputdir: String = null
 	private var outputdir: String = null
 	private var mainclassname: String = null
+	private var optimise = false
 	
 	private val argumentParser = new ArgumentParser(
 			Array(
@@ -34,7 +35,10 @@ object Main
 						(s: String) => outputdir = s),
 				ArgumentParser.Descriptor("m", "main", true,
 						"Specify main class",
-						(s: String) => mainclassname = s)
+						(s: String) => mainclassname = s),
+				ArgumentParser.Descriptor("O", "optimise", false,
+						"Apply (slow) optimisations",
+						(s: String) => optimise = true)
 			))
 	
 	implicit def convertScalaListToJavaList(list: List[String]) =
@@ -89,15 +93,26 @@ object Main
 			Options.v.set_prepend_classpath(false)
 			//Options.v.set_whole_program(true)
 			Options.v.set_main_class(mainclassname)
-			Options.v.set_verbose(true)
+//			Options.v.set_verbose(true)
 			Options.v.set_include_all(true)
 			Options.v.set_output_format(Options.output_format_j)
-			Options.v.setPhaseOption("jb.a", "only-stack-locals:false") 
-			Options.v.setPhaseOption("jb.lp", "enabled:true") /* fold locals */
-			Options.v.setPhaseOption("jb.tt", "enabled:true") /* reuse locals */
-			Options.v.setPhaseOption("jap.npc", "enabled:true") /* detect non-null pointers */
-			Options.v.setPhaseOption("jap.abc", "enabled:true") /* array bounds checking */
-			Options.v.setPhaseOption("jap.abc", "with-all:true") /* array bounds checking */
+			
+			if (optimise)
+			{
+				Options.v.setPhaseOption("jb.a", "only-stack-locals:false") 
+				Options.v.setPhaseOption("jb.lp", "enabled:true") /* fold locals */
+				Options.v.setPhaseOption("jb.tt", "enabled:true") /* reuse locals */
+				Options.v.setPhaseOption("jap.npc", "enabled:true") /* detect non-null pointers */
+				Options.v.setPhaseOption("jap.abc", "enabled:true") /* array bounds checking */
+				Options.v.setPhaseOption("jap.abc", "with-all:true") /* array bounds checking */
+			}
+			else
+			{
+				Options.v.setPhaseOption("jb.lp", "enabled:false") /* fold locals */
+				Options.v.setPhaseOption("jb.tt", "enabled:false") /* reuse locals */
+				Options.v.setPhaseOption("jap.npc", "enabled:false") /* detect non-null pointers */
+				Options.v.setPhaseOption("jap.abc", "enabled:false") /* array bounds checking */
+			}
 
 			Scene.v.loadNecessaryClasses
 			PackManager.v.runPacks

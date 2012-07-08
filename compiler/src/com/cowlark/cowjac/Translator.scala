@@ -17,6 +17,7 @@ import soot.jimple.IntConstant
 import soot.jimple.InvokeExpr
 import soot.jimple.InvokeStmt
 import soot.jimple.NewExpr
+import soot.jimple.NewArrayExpr
 import soot.jimple.ParameterRef
 import soot.jimple.ReturnStmt
 import soot.jimple.ReturnVoidStmt
@@ -46,6 +47,44 @@ import soot.Type
 import soot.TypeSwitch
 import soot.VoidType
 import soot.jimple.toolkits.annotation.tags.NullCheckTag
+import soot.jimple.InstanceFieldRef
+import soot.jimple.StaticInvokeExpr
+import soot.jimple.ArrayRef
+import soot.jimple.LengthExpr
+import soot.jimple.ThrowStmt
+import soot.jimple.SubExpr
+import soot.jimple.MulExpr
+import soot.jimple.DivExpr
+import soot.jimple.RemExpr
+import soot.jimple.ShrExpr
+import soot.jimple.ShlExpr
+import soot.jimple.LtExpr
+import soot.jimple.GtExpr
+import soot.jimple.EqExpr
+import soot.jimple.LeExpr
+import soot.jimple.NeExpr
+import soot.jimple.XorExpr
+import soot.jimple.AndExpr
+import soot.jimple.OrExpr
+import soot.jimple.CastExpr
+import soot.jimple.GotoStmt
+import soot.jimple.InstanceOfExpr
+import soot.jimple.CaughtExceptionRef
+import soot.jimple.InstanceInvokeExpr
+import soot.jimple.InterfaceInvokeExpr
+import soot.jimple.StaticFieldRef
+import soot.jimple.EnterMonitorStmt
+import soot.jimple.ExitMonitorStmt
+import soot.jimple.UnopExpr
+import soot.jimple.NegExpr
+import soot.jimple.CmpExpr
+import soot.jimple.CmpgExpr
+import soot.jimple.LongConstant
+import soot.jimple.UshrExpr
+import soot.jimple.CmplExpr
+import soot.jimple.DoubleConstant
+import soot.jimple.FloatConstant
+import soot.jimple.ClassConstant
 
 object Translator extends DependencyAnalyser
 {
@@ -94,7 +133,7 @@ object Translator extends DependencyAnalyser
 			
 			override def caseArrayType(t: ArrayType)
 			{
-				ps.print("com::cowlark::cowjac::Array< ")
+				ps.print("::com::cowlark::cowjac::Array< ")
 				t.getElementType.apply(TS)
 				ps.print(" >*")
 			}
@@ -313,6 +352,21 @@ object Translator extends DependencyAnalyser
 			override def caseIntConstant(s: IntConstant) =
 				ps.print(s.value)
 			
+			override def caseLongConstant(s: LongConstant) =
+			{
+				ps.print(s.value)
+				ps.print("LL")
+			}
+			
+			override def caseFloatConstant(s: FloatConstant) =
+			{
+				ps.print(s.value)
+				ps.print("f")
+			}
+			
+			override def caseDoubleConstant(s: DoubleConstant) =
+				ps.print(s.value)
+			
 			override def caseStringConstant(s: StringConstant) =
 			{
 				ps.print("(java::lang::String*)0 /* string constant */")
@@ -320,6 +374,13 @@ object Translator extends DependencyAnalyser
 			
 			override def caseNullConstant(s: NullConstant) =
 				ps.print("0")
+				
+			override def caseClassConstant(s: ClassConstant) =
+			{
+				ps.print("<class ")
+				ps.print(s)
+				ps.print(">")
+			}
 				
 			override def caseThisRef(v: ThisRef) =
 				ps.print("this")
@@ -333,26 +394,119 @@ object Translator extends DependencyAnalyser
 				ps.print(v.getName)
 			}
 			
+			override def caseInstanceFieldRef(v: InstanceFieldRef) =
+			{
+				v.getBase.apply(VS)
+				ps.print("->")
+				ps.print(javaToCXX(v.getFieldRef.declaringClass.getName))
+				ps.print("::")
+				ps.print(v.getFieldRef.name)
+			}
+			
+			override def caseStaticFieldRef(v: StaticFieldRef) =
+			{
+				ps.print("<staticfield ")
+				ps.print(v)
+				ps.print(">")
+			}
+			
+			override def caseArrayRef(v: ArrayRef) =
+			{
+				ps.print("<array ")
+				ps.print(v)
+				ps.print(">")
+			}
+			
+			override def caseLengthExpr(v: LengthExpr) =
+			{
+				ps.print("<length ")
+				ps.print(v)
+				ps.print(">")
+			}
+				
 			override def caseParameterRef(v: ParameterRef) =
 			{
 				ps.print("p")
 				ps.print(v.getIndex)
 			}
 			
-			override def caseAddExpr(v: AddExpr) = caseBinopExpr(v)
-			override def caseGeExpr(v: GeExpr) = caseBinopExpr(v)
+			override def caseCaughtExceptionRef(v: CaughtExceptionRef) =
+			{
+				ps.print("<caughtexception>")
+			}
 			
-			def caseBinopExpr(v: BinopExpr) =
+			override def caseCastExpr(v: CastExpr) =
+			{
+				ps.print("<cast ")
+				ps.print(v)
+				ps.print(">")
+			}
+			
+			override def caseInstanceOfExpr(v: InstanceOfExpr) =
+			{
+				ps.print("<instanceof ")
+				ps.print(v)
+				ps.print(">")
+			}
+			
+			override def caseAddExpr(v: AddExpr) = caseBinopExpr(v)
+			override def caseSubExpr(v: SubExpr) = caseBinopExpr(v)
+			override def caseMulExpr(v: MulExpr) = caseBinopExpr(v)
+			override def caseDivExpr(v: DivExpr) = caseBinopExpr(v)
+			override def caseRemExpr(v: RemExpr) = caseBinopExpr(v)
+			override def caseShlExpr(v: ShlExpr) = caseBinopExpr(v)
+			override def caseShrExpr(v: ShrExpr) = caseBinopExpr(v)
+			override def caseUshrExpr(v: UshrExpr) = caseBinopXExpr(v, "Ushr")
+			override def caseGeExpr(v: GeExpr) = caseBinopExpr(v)
+			override def caseGtExpr(v: GtExpr) = caseBinopExpr(v)
+			override def caseLeExpr(v: LeExpr) = caseBinopExpr(v)
+			override def caseLtExpr(v: LtExpr) = caseBinopExpr(v)
+			override def caseEqExpr(v: EqExpr) = caseBinopExpr(v)
+			override def caseNeExpr(v: NeExpr) = caseBinopExpr(v)
+			override def caseCmpExpr(v: CmpExpr) = caseBinopXExpr(v, "Cmp")
+			override def caseCmpgExpr(v: CmpgExpr) = caseBinopXExpr(v, "Cmpg")
+			override def caseCmplExpr(v: CmplExpr) = caseBinopXExpr(v, "Cmpl")
+			override def caseAndExpr(v: AndExpr) = caseBinopExpr(v)
+			override def caseOrExpr(v: OrExpr) = caseBinopExpr(v)
+			override def caseXorExpr(v: XorExpr) = caseBinopExpr(v)
+			
+			private def caseBinopExpr(v: BinopExpr) =
 			{
 				v.getOp1.apply(VS)
 				ps.print(v.getSymbol)
 				v.getOp2.apply(VS)
+			}
+
+			private def caseBinopXExpr(v: BinopExpr, x: String) =
+			{
+				ps.print("::com::cowlark::cowjac::")
+				ps.print(x)
+				ps.print("(")
+				v.getOp1.apply(VS)
+				ps.print(", ")
+				v.getOp2.apply(VS)
+				ps.print(")")
+			}
+			
+			override def caseNegExpr(v: NegExpr) =
+			{
+				ps.print("-")
+				v.getOp.apply(VS)
 			}
 			
 			override def caseNewExpr(v: NewExpr) =
 			{
 				ps.print("new ")
 				v.getType.apply(NS)
+			}
+			
+			override def caseNewArrayExpr(v: NewArrayExpr) =
+			{
+				ps.print("::com::cowlark::cowjac::Array< ")
+				translateType(v.getBaseType, ps)
+				ps.print(" >::Create(&F, ")
+				v.getSize.apply(VS)
+				ps.print(")")
 			}
 			
 			private def parameters(v: InvokeExpr)
@@ -368,7 +522,13 @@ object Translator extends DependencyAnalyser
 				ps.print(")")
 			}
 			
+			override def caseInterfaceInvokeExpr(v: InterfaceInvokeExpr) =
+				caseInstanceInvokeExpr(v)
+				
 			override def caseVirtualInvokeExpr(v: VirtualInvokeExpr) =
+				caseInstanceInvokeExpr(v)
+				
+			def caseInstanceInvokeExpr(v: InstanceInvokeExpr) =
 			{
 				if (!notnull)
 					ps.print("com::cowlark::cowjac::NullCheck(")
@@ -399,7 +559,16 @@ object Translator extends DependencyAnalyser
 					
 				parameters(v)
 			}
+			
+			override def caseStaticInvokeExpr(v: StaticInvokeExpr) =
+			{
+				ps.print(javaToCXX(v.getMethodRef.declaringClass.getName))
+				ps.print("::")
+				ps.print(v.getMethodRef.name)
 				
+				parameters(v)
+			}
+			
 			override def defaultCase(s: Any) = assert(false)
 		}
 		
@@ -441,6 +610,46 @@ object Translator extends DependencyAnalyser
 				ps.print(" = ")
 				s.getRightOp.apply(VS)
 				ps.print(";\n")
+			}
+			
+			override def caseThrowStmt(s: ThrowStmt) =
+			{
+				ps.print("\tthrow ")
+				s.getOp.apply(VS)
+				ps.print(";\n")
+			}
+			
+			override def caseGotoStmt(s: GotoStmt) =
+			{
+				ps.print("\tgoto ")
+				ps.print(label(s.getTarget))
+				ps.print(";\n")
+			}
+			
+			override def caseEnterMonitorStmt(s: EnterMonitorStmt) =
+			{
+				ps.print("\t")
+					
+				if (!notnull)
+					ps.print("com::cowlark::cowjac::NullCheck(")
+				s.getOp.apply(VS)
+				if (!notnull)
+					ps.print(")")
+					
+				ps.print("->___entermonitor();\n")
+			}
+			
+			override def caseExitMonitorStmt(s: ExitMonitorStmt) =
+			{
+				ps.print("\t")
+					
+				if (!notnull)
+					ps.print("com::cowlark::cowjac::NullCheck(")
+				s.getOp.apply(VS)
+				if (!notnull)
+					ps.print(")")
+					
+				ps.print("->___leavemonitor();\n")
 			}
 			
 			override def defaultCase(s: Any) = assert(false)
