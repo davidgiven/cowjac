@@ -93,8 +93,9 @@ object Translator extends DependencyAnalyser
 {
 	private var namecache = HashMap[String, String]()
 	
+	private val splitpoints = Array('.', '/')
 	private def reformName(jname: String, separator: String): String =
-		jname.split(Array('.', '/')).reduceLeft(_ + separator + _)
+		jname.split(splitpoints).reduceLeft(_ + separator + _)
 		
 	private def javaToCXX(jname: String): String =
 	{
@@ -135,44 +136,43 @@ object Translator extends DependencyAnalyser
 	private def methodName(m: SootMethod): String =
 		methodName(m.getName)
 	
-	private def translateModifier(cm: ClassMember, ps: PrintStream)
+	private def translateModifier(cm: ClassMember, p: Printer)
 	{
 		if (cm.isPrivate)
-			ps.print("private: ")
+			p.print("private: ")
 		else if (cm.isProtected)
-			ps.print("protected: ")
+			p.print("protected: ")
 		else
-			ps.print("public: ")
+			p.print("public: ")
 			
 		if (cm.isStatic)
-			ps.print("static ")			
+			p.print("static ")			
 	}
 	
-	private def translateType(t: Type, ps: PrintStream)
+	private def translateType(t: Type, p: Printer)
 	{
 		object TS extends TypeSwitch
 		{
-			override def caseVoidType(t: VoidType) = ps.print("void")
-			override def caseBooleanType(t: BooleanType) = ps.print("jboolean")
-			override def caseByteType(t: ByteType) = ps.print("jbyte")
-			override def caseCharType(t: CharType) = ps.print("jchar")
-			override def caseShortType(t: ShortType) = ps.print("jshort")
-			override def caseIntType(t: IntType) = ps.print("jint")
-			override def caseLongType(t: LongType) = ps.print("jlong")
-			override def caseFloatType(t: FloatType) = ps.print("jfloat")
-			override def caseDoubleType(t: DoubleType) = ps.print("jdouble")
+			override def caseVoidType(t: VoidType) = p.print("void")
+			override def caseBooleanType(t: BooleanType) = p.print("jboolean")
+			override def caseByteType(t: ByteType) = p.print("jbyte")
+			override def caseCharType(t: CharType) = p.print("jchar")
+			override def caseShortType(t: ShortType) = p.print("jshort")
+			override def caseIntType(t: IntType) = p.print("jint")
+			override def caseLongType(t: LongType) = p.print("jlong")
+			override def caseFloatType(t: FloatType) = p.print("jfloat")
+			override def caseDoubleType(t: DoubleType) = p.print("jdouble")
 			
 			override def caseArrayType(t: ArrayType)
 			{
-				ps.print("::com::cowlark::cowjac::Array< ")
+				p.print("::com::cowlark::cowjac::Array< ")
 				t.getElementType.apply(TS)
-				ps.print(" >*")
+				p.print(" >*")
 			}
 			
 			override def caseRefType(t: RefType)
 			{
-				ps.print(className(t.getSootClass))
-				ps.print("*")
+				p.print(className(t.getSootClass), "*")
 			}
 			
 			override def defaultCase(t: Type) = assert(false)
@@ -180,151 +180,138 @@ object Translator extends DependencyAnalyser
 		t.apply(TS)
 	}
 	
-	def translateFieldDeclaration(field: SootField, hps: PrintStream)
+	def translateFieldDeclaration(field: SootField, ps: PrintSet)
 	{
 		val isref = field.getType.isInstanceOf[RefLikeType]
 
-		hps.print("\t")
-		translateModifier(field, hps)
+		ps.h.print("\t")
+		translateModifier(field, ps.h)
 		if (isref && field.isStatic)
-			hps.print("com::cowlark::cowjac::GlobalReference< ")
-		translateType(field.getType, hps)
+			ps.h.print("com::cowlark::cowjac::GlobalReference< ")
+		translateType(field.getType, ps.h)
 		if (isref && field.isStatic)
-			hps.print(" >")
-		hps.print(" ")
-		hps.print(fieldName(field))
-		hps.print(";\n")
+			ps.h.print(" >")
+		ps.h.print(" ", fieldName(field), ";\n")
 	}
 	
-	def translateFieldDefinition(field: SootField, cps: PrintStream)
+	def translateFieldDefinition(field: SootField, ps: PrintSet)
 	{
 		if (field.isStatic)
 		{
 			val isref = field.getType.isInstanceOf[RefLikeType]
 			
 			if (isref)
-				cps.print("com::cowlark::cowjac::GlobalReference< ")
-			translateType(field.getType, cps)
+				ps.ch.print("com::cowlark::cowjac::GlobalReference< ")
+			translateType(field.getType, ps.ch)
 			if (isref)
-				cps.print(" >")
+				ps.ch.print(" >")
 				
-			cps.print(" ")
-			cps.print(className(field.getDeclaringClass))
-			cps.print("::")
-			cps.print(fieldName(field))
-			cps.print(";\n")
+			ps.ch.print(" ", className(field.getDeclaringClass), "::",
+					fieldName(field), ";\n")
 		}
 	}
 	
-	def translateMethodDeclaration(method: SootMethod, hps: PrintStream)
+	def translateMethodDeclaration(method: SootMethod, ps: PrintSet)
 	{
-		hps.print("\t")
-		translateModifier(method, hps)
+		ps.h.print("\t")
+		translateModifier(method, ps.h)
 		
 		if (!method.isPrivate && !method.isStatic)
-			hps.print("virtual ")
+			ps.h.print("virtual ")
 			
-		translateType(method.getReturnType, hps)
-		hps.print(" ")
-		hps.print(methodName(method))
+		translateType(method.getReturnType, ps.h)
+		ps.h.print(" ", methodName(method))
 
-		hps.print("(com::cowlark::cowjac::Stackframe*")
+		ps.h.print("(com::cowlark::cowjac::Stackframe*")
 		
 		for (to <- method.getParameterTypes)
 		{
 			val t = to.asInstanceOf[Type]
 
-			hps.print(", ")
-			translateType(t, hps)
+			ps.h.print(", ")
+			translateType(t, ps.h)
 		}
 			
-		hps.print(")")
+		ps.h.print(")")
 		
 		if (method.isAbstract)
-			hps.print(" = 0")
-		hps.print(";\n")
+			ps.h.print(" = 0")
+		ps.h.print(";\n")
 	}
 	
-	def translateMethodDefinition(method: SootMethod, ps: PrintStream)
+	def translateMethodDefinition(method: SootMethod, ps: PrintSet)
 	{
 		val body = method.getActiveBody
 		
-		translateType(method.getReturnType, ps)
-		ps.print(" ")
-		ps.print(className(method.getDeclaringClass))
-		ps.print("::")
-		ps.print(methodName(method))
-			
-		ps.print("(com::cowlark::cowjac::Stackframe* parentFrame")
+		translateType(method.getReturnType, ps.c)
+		ps.c.print(" ", className(method.getDeclaringClass), "::",
+				methodName(method),
+				"(com::cowlark::cowjac::Stackframe* parentFrame")
 		
 		for (i <- 0 until method.getParameterCount)
 		{
 			val t = method.getParameterType(i)
 			
-			ps.print(", ")
-			translateType(t, ps)
-			ps.print(" p")
-			ps.print(i)
+			ps.c.print(", ")
+			translateType(t, ps.c)
+			ps.c.print(" p", String.valueOf(i))
 		}
 		
-		ps.print(")\n{\n")
+		ps.c.print(")\n{\n")
 		
 		/* Declare stackframe structure. */
 
-		ps.print("\tstruct frame : public com::cowlark::cowjac::Stackframe\n")
-		ps.print("\t{\n");
-		ps.print("\t\tframe(com::cowlark::cowjac::Stackframe* p):\n")
-		ps.print("\t\t\tcom::cowlark::cowjac::Stackframe(p)\n")
+		ps.c.print("\tstruct frame : public com::cowlark::cowjac::Stackframe\n")
+		ps.c.print("\t{\n");
+		ps.c.print("\t\tframe(com::cowlark::cowjac::Stackframe* p):\n")
+		ps.c.print("\t\t\tcom::cowlark::cowjac::Stackframe(p)\n")
 	
 		val reflike = body.getLocals.filter(s => s.getType.isInstanceOf[RefLikeType])
 		
-		ps.print("\t\t{\n")
+		ps.c.print("\t\t{\n")
 		if (!reflike.isEmpty)
 		{
-			ps.print("\t\t\tmemset(&f")
-			ps.print(reflike.first.getName)
-			ps.print(", 0, sizeof(f")
-			ps.print(reflike.first.getName)
-			ps.print(") * ")
-			ps.print(reflike.size)
-			ps.print(");\n")
+			ps.c.print("\t\t\tmemset(&f",
+					reflike.first.getName,
+					", 0, sizeof(f",
+					reflike.first.getName,
+					") * ",
+					String.valueOf(reflike.size),
+					");\n")
 		}
-		ps.print("\t\t}\n")
+		ps.c.print("\t\t}\n")
 		
-		ps.print("\n")
+		ps.c.print("\n")
 		
 		if (!reflike.isEmpty)
 		{
-			ps.print("\t\tvoid mark()\n")
-			ps.print("\t\t{\n")
+			ps.c.print("\t\tvoid mark()\n")
+			ps.c.print("\t\t{\n")
 			
-			ps.print("\t\t\tmarkMany((void**) &f")
-			ps.print(reflike.first.getName)
-			ps.print(", ")
-			ps.print(reflike.size)
-			ps.print(");\n")
+			ps.c.print("\t\t\tmarkMany((void**) &f",
+					reflike.first.getName, ", ",
+					String.valueOf(reflike.size),
+					");\n")
 			
-			ps.print("\t\t}\n")
+			ps.c.print("\t\t}\n")
 		}
 		
-		ps.print("\n")
-		ps.print("public:\n")
+		ps.c.print("\n")
+		ps.c.print("public:\n")
 		
 		for (local <- reflike)
 		{
 			val t = local.getType
 
-			ps.print("\t\t")
-			translateType(t, ps)
+			ps.c.print("\t\t")
+			translateType(t, ps.c)
 
-			ps.print(" f")
-			ps.print(local.getName)
-			ps.print(";\n")
+			ps.c.print(" f", local.getName, ";\n")
 		}
 
-		ps.print("\t};\n");
-		ps.print("\tframe F(parentFrame);\n")
-		ps.print("\n")
+		ps.c.print("\t};\n");
+		ps.c.print("\tframe F(parentFrame);\n")
+		ps.c.print("\n")
 		
 		/* Declare locals that don't need to go in the frame. */
 		
@@ -333,11 +320,9 @@ object Translator extends DependencyAnalyser
 			val t = local.getType
 			if (!t.isInstanceOf[RefLikeType])
 			{
-				ps.print("\t")
-				translateType(t, ps)
-				ps.print(" j")
-				ps.print(local.getName)
-				ps.print(" = 0;\n")
+				ps.c.print("\t")
+				translateType(t, ps.c)
+				ps.c.print(" j", local.getName, " = 0;")
 			}
 		}
 		
@@ -362,7 +347,7 @@ object Translator extends DependencyAnalyser
 		object NS extends TypeSwitch
 		{
 			override def caseRefType(t: RefType) =
-				ps.print(javaToCXX(t.getSootClass.getName))
+				ps.c.print(javaToCXX(t.getSootClass.getName))
 			
 			override def defaultCase(t: Type) = assert(false)
 		}
@@ -370,103 +355,74 @@ object Translator extends DependencyAnalyser
 		object VS extends AbstractJimpleValueSwitch
 		{
 			override def caseIntConstant(s: IntConstant) =
-				ps.print(s.value)
+				ps.c.print(String.valueOf(s.value))
 			
 			override def caseLongConstant(s: LongConstant) =
-			{
-				ps.print(s.value)
-				ps.print("LL")
-			}
+				ps.c.print(String.valueOf(s.value), "LL")
 			
 			override def caseFloatConstant(s: FloatConstant) =
-			{
-				ps.print(s.value)
-				ps.print("f")
-			}
+				ps.c.print(String.valueOf(s.value), "fLL")
 			
 			override def caseDoubleConstant(s: DoubleConstant) =
-				ps.print(s.value)
+				ps.c.print(String.valueOf(s.value))
 			
 			override def caseStringConstant(s: StringConstant) =
 			{
-				ps.print("(java::lang::String*)0 /* string constant */")
+				ps.c.print("(java::lang::String*)0 /* string constant */")
 			}
 			
 			override def caseNullConstant(s: NullConstant) =
-				ps.print("0")
+				ps.c.print("0")
 				
 			override def caseClassConstant(s: ClassConstant) =
-			{
-				ps.print(className(s.value))
-				ps.print("::classInit(&F)->CLASS");
-			}
+				ps.c.print(className(s.value), "::classInit(&F)->CLASS");
 				
 			override def caseThisRef(v: ThisRef) =
-				ps.print("this")
+				ps.c.print("this")
 				
 			override def caseLocal(v: Local) =
 			{
 				if (v.getType.isInstanceOf[RefLikeType])
-					ps.print("F.f")
+					ps.c.print("F.f")
 				else
-					ps.print("j")
-				ps.print(v.getName)
+					ps.c.print("j")
+				ps.c.print(v.getName)
 			}
 			
 			override def caseInstanceFieldRef(v: InstanceFieldRef) =
 			{
 				v.getBase.apply(VS)
-				ps.print("->f_")
-				ps.print(className(v.getFieldRef.declaringClass))
-				ps.print("::")
-				ps.print(v.getFieldRef.name)
+				ps.c.print("->f_", className(v.getFieldRef.declaringClass),
+						"::", v.getFieldRef.name)
 			}
 			
 			override def caseStaticFieldRef(v: StaticFieldRef) =
-			{
-				ps.print("<staticfield ")
-				ps.print(v)
-				ps.print(">")
-			}
+				ps.c.print("<staticfield ", v.toString, ">")
 			
 			override def caseArrayRef(v: ArrayRef) =
-			{
-				ps.print("<array ")
-				ps.print(v)
-				ps.print(">")
-			}
+				ps.c.print("<array ", v.toString, ">")
 			
 			override def caseLengthExpr(v: LengthExpr) =
 			{
-				ps.print("<length ")
-				ps.print(v)
-				ps.print(">")
+				if (!notnull)
+					ps.c.print("::com::cowlark::cowjac::NullPointerCheck(")
+				v.getOp.apply(VS)
+				if (!notnull)
+					ps.c.print(")")
+				ps.c.print("->length")
 			}
 				
 			override def caseParameterRef(v: ParameterRef) =
-			{
-				ps.print("p")
-				ps.print(v.getIndex)
-			}
+				ps.c.print("p", String.valueOf(v.getIndex))
 			
 			override def caseCaughtExceptionRef(v: CaughtExceptionRef) =
-			{
-				ps.print("<caughtexception>")
-			}
+				ps.c.print("<caughtexception>")
 			
 			override def caseCastExpr(v: CastExpr) =
-			{
-				ps.print("<cast ")
-				ps.print(v)
-				ps.print(">")
-			}
+				ps.c.print("<cast ", v.toString, ">")
 			
 			override def caseInstanceOfExpr(v: InstanceOfExpr) =
-			{
-				ps.print("<instanceof ")
-				ps.print(v)
-				ps.print(">")
-			}
+				ps.c.print("<instanceof ", v.toString, ">")
 			
 			override def caseAddExpr(v: AddExpr) = caseBinopExpr(v)
 			override def caseSubExpr(v: SubExpr) = caseBinopExpr(v)
@@ -492,53 +448,51 @@ object Translator extends DependencyAnalyser
 			private def caseBinopExpr(v: BinopExpr) =
 			{
 				v.getOp1.apply(VS)
-				ps.print(v.getSymbol)
+				ps.c.print(v.getSymbol)
 				v.getOp2.apply(VS)
 			}
 
 			private def caseBinopXExpr(v: BinopExpr, x: String) =
 			{
-				ps.print("::com::cowlark::cowjac::")
-				ps.print(x)
-				ps.print("(")
+				ps.c.print("::com::cowlark::cowjac::", x, "(")
 				v.getOp1.apply(VS)
-				ps.print(", ")
+				ps.c.print(", ")
 				v.getOp2.apply(VS)
-				ps.print(")")
+				ps.c.print(")")
 			}
 			
 			override def caseNegExpr(v: NegExpr) =
 			{
-				ps.print("-")
+				ps.c.print("-")
 				v.getOp.apply(VS)
 			}
 			
 			override def caseNewExpr(v: NewExpr) =
 			{
-				ps.print("new ")
+				ps.c.print("new ")
 				v.getType.apply(NS)
 			}
 			
 			override def caseNewArrayExpr(v: NewArrayExpr) =
 			{
-				ps.print("::com::cowlark::cowjac::Array< ")
-				translateType(v.getBaseType, ps)
-				ps.print(" >::Create(&F, ")
+				ps.c.print("::com::cowlark::cowjac::Array< ")
+				translateType(v.getBaseType, ps.c)
+				ps.c.print(" >::Create(&F, ")
 				v.getSize.apply(VS)
-				ps.print(")")
+				ps.c.print(")")
 			}
 			
 			private def parameters(v: InvokeExpr)
 			{
-				ps.print("(&F")
+				ps.c.print("(&F")
 				
 				for (arg <- v.getArgs)
 				{
-					ps.print(", ")
+					ps.c.print(", ")
 					arg.apply(VS)
 				}
 				
-				ps.print(")")
+				ps.c.print(")")
 			}
 			
 			override def caseInterfaceInvokeExpr(v: InterfaceInvokeExpr) =
@@ -550,37 +504,33 @@ object Translator extends DependencyAnalyser
 			def caseInstanceInvokeExpr(v: InstanceInvokeExpr) =
 			{
 				if (!notnull)
-					ps.print("com::cowlark::cowjac::NullCheck(")
+					ps.c.print("com::cowlark::cowjac::NullCheck(")
 				v.getBase.apply(VS)
 				if (!notnull)
-					ps.print(")")
+					ps.c.print(")")
 					
-				ps.print("->")
-				ps.print(methodName(v.getMethodRef))
+				ps.c.print("->", methodName(v.getMethodRef))
 				parameters(v)
 			}
 				
 			override def caseSpecialInvokeExpr(v: SpecialInvokeExpr) =
 			{
 				if (!notnull)
-					ps.print("com::cowlark::cowjac::NullCheck(")
+					ps.c.print("com::cowlark::cowjac::NullCheck(")
 				v.getBase.apply(VS)
 				if (!notnull)
-					ps.print(")")
+					ps.c.print(")")
 					
-				ps.print("->")
-				ps.print(className(v.getMethodRef.declaringClass))
-				ps.print("::")
-				ps.print(methodName(v.getMethodRef))
+				ps.c.print("->", className(v.getMethodRef.declaringClass),
+						"::", methodName(v.getMethodRef))
 					
 				parameters(v)
 			}
 			
 			override def caseStaticInvokeExpr(v: StaticInvokeExpr) =
 			{
-				ps.print(className(v.getMethodRef.declaringClass))
-				ps.print("::")
-				ps.print(methodName(v.getMethodRef))
+				ps.c.print(className(v.getMethodRef.declaringClass), "::",
+						methodName(v.getMethodRef))
 				
 				parameters(v)
 			}
@@ -595,77 +545,71 @@ object Translator extends DependencyAnalyser
 			
 			override def caseReturnStmt(s: ReturnStmt) =
 			{
-				ps.print("\treturn ")
+				ps.c.print("\treturn ")
 				s.getOp.apply(VS)
-				ps.print(";\n")
+				ps.c.print(";\n")
 			}
 			
 			override def caseReturnVoidStmt(s: ReturnVoidStmt) =
-				ps.print("\treturn;\n")
+				ps.c.print("\treturn;\n")
 			
 			override def caseIfStmt(s: IfStmt) =
 			{
-				ps.print("\tif (")
+				ps.c.print("\tif (")
 				s.getCondition.apply(VS)
-				ps.print(") goto ")
-				ps.print(label(s.getTarget))
-				ps.print(";\n")
+				ps.c.print(") goto ", label(s.getTarget), ";\n")
 			}
 				
 			override def caseInvokeStmt(s: InvokeStmt) =
 			{
-				ps.print("\t")
+				ps.c.print("\t")
 				s.getInvokeExpr.apply(VS)
-				ps.print(";\n")
+				ps.c.print(";\n")
 			}
 				
 			def caseDefinitionStmt(s: DefinitionStmt) =
 			{
-				ps.print("\t")
+				ps.c.print("\t")
 				s.getLeftOp.apply(VS)
-				ps.print(" = ")
+				ps.c.print(" = ")
 				s.getRightOp.apply(VS)
-				ps.print(";\n")
+				ps.c.print(";\n")
 			}
 			
 			override def caseThrowStmt(s: ThrowStmt) =
 			{
-				ps.print("\tthrow ")
+				ps.c.print("\tthrow ")
 				s.getOp.apply(VS)
-				ps.print(";\n")
+				ps.c.print(";\n")
 			}
 			
 			override def caseGotoStmt(s: GotoStmt) =
-			{
-				ps.print("\tgoto ")
-				ps.print(label(s.getTarget))
-				ps.print(";\n")
-			}
+				ps.c.print("\tgoto ", label(s.getTarget), ";\n")
 			
 			override def caseEnterMonitorStmt(s: EnterMonitorStmt) =
 			{
-				ps.print("\t")
+				ps.c.print("\t")
 					
 				if (!notnull)
-					ps.print("com::cowlark::cowjac::NullCheck(")
+					ps.c.print("com::cowlark::cowjac::NullCheck(")
 				s.getOp.apply(VS)
 				if (!notnull)
-					ps.print(")")
+					ps.c.print(")")
 					
-				ps.print("->enterMonitor();\n")
+				ps.c.print("->enterMonitor();\n")
 			}
 			
 			override def caseExitMonitorStmt(s: ExitMonitorStmt) =
 			{
-				ps.print("\t")
+				ps.c.print("\t")
 					
 				if (!notnull)
-					ps.print("com::cowlark::cowjac::NullCheck(")
+					ps.c.print("com::cowlark::cowjac::NullCheck(")
 				s.getOp.apply(VS)
 				if (!notnull)
-					ps.print(")")
+					ps.c.print(")")
 					
-				ps.print("->leaveMonitor();\n")
+				ps.c.print("->leaveMonitor();\n")
 			}
 			
 			override def defaultCase(s: Any) = assert(false)
@@ -685,10 +629,7 @@ object Translator extends DependencyAnalyser
 					true
 				
 			if (junction)
-			{
-				ps.print(label(unit))
-				ps.print(":\n")
-			}
+				ps.c.print(label(unit), ":\n")
 
 			val tag = unit.getTag("NullCheckTag").asInstanceOf[NullCheckTag]
 			notnull = (tag != null) && !tag.needCheck()
@@ -697,129 +638,113 @@ object Translator extends DependencyAnalyser
 			oldunit = unit
 		}
 		
-		ps.print("}\n\n")
+		ps.c.print("}\n\n")
 	}
 	
-	private def forwardDeclare(sootclass: SootClass, ps: PrintStream)
+	private def forwardDeclare(sootclass: SootClass, ps: PrintSet)
 	{
 		val nslevels = sootclass.getName.split('.')
 		for (i <- 0 to nslevels.length-2)
-			ps.print("namespace "+nslevels(i)+" { ")
+			ps.h.print("namespace ", nslevels(i), " { ")
 		
-		ps.print("class ")
-		ps.print(sootclass.getJavaStyleName)
-		ps.print("; ")
+		ps.h.print("class ", sootclass.getJavaStyleName, "; ")
 		
 		for (i <- 0 to nslevels.length-2)
-			ps.print("}")
-		ps.print("\n")
+			ps.h.print("}")
+		ps.h.print("\n")
 	}
 	
-	def translate(sootclass: SootClass, cps: PrintStream, hps: PrintStream)
+	def translate(sootclass: SootClass, ps: PrintSet)
 	{
 		val jname = sootclass.getName()
 		val cxxname = javaToCXX(jname)
 		val headername = reformName(jname, "_").toUpperCase() + "_H"
 		
-		hps.print("#ifndef "+headername+"\n")
-		hps.print("#define "+headername+"\n")
+		ps.h.print("#ifndef ", headername, "\n")
+		ps.h.print("#define ", headername, "\n")
 		
-		cps.print("#include \"cowjac.h\"\n")
-		cps.print("#include \"cowjacarray.h\"\n")
+		ps.ch.print("#include \"cowjac.h\"\n")
+		ps.ch.print("#include \"cowjacarray.h\"\n")
 		
-		hps.print("\n")
+		ps.h.print("\n")
 		val dependencies = getDependencies(sootclass)
 		for (d <- dependencies)
 		{
-			forwardDeclare(d, hps)
-			cps.print("#include \"")
-			cps.print(d.getName)
-			cps.print(".h\"\n")
+			forwardDeclare(d, ps)
+			ps.ch.print("#include \"", d.getName, ".h\"\n")
 		}
 		
-		hps.print("\n")
-		cps.print("\n")
+		ps.h.print("\n")
+		ps.ch.print("\n")
 		
 		val nslevels = jname.split('.')
 		for (i <- 0 to nslevels.length-2)
-			hps.print("namespace "+nslevels(i)+" {\n")
+			ps.h.print("namespace ", nslevels(i), " {\n")
 		
-		hps.print("\n")
+		ps.h.print("\n")
 		
 		var superclasses = Vector.empty[SootClass]
 		if (jname != "java.lang.Object")
 			superclasses = superclasses :+ sootclass.getSuperclass
 
 		for (s <- superclasses)
-		{
-			hps.print("#include \"")
-			hps.print(s.getName)
-			hps.print(".h\"\n")
-		}
+			ps.h.print("#include \"", s.getName, ".h\"\n")
 		
-		hps.print("class " + sootclass.getJavaStyleName)
+		ps.h.print("class ", sootclass.getJavaStyleName)
 		if (!superclasses.isEmpty)
 		{
 			val superclassnames = superclasses.map((c: SootClass) => "public " + javaToCXX(c.getName))
-			hps.print(" : ")
-			hps.print(superclassnames.reduceLeft(_ + ", " + _))
+			ps.h.print(" : ", superclassnames.reduceLeft(_ + ", " + _))
 		}
 		else
-			hps.print(" : public com::cowlark::cowjac::Object")
+			ps.h.print(" : public com::cowlark::cowjac::Object")
 		
-		hps.print("\n{\n")
+		ps.h.print("\n{\n")
 		
-		hps.print("\t/* Class management */\n")
-		cps.print("/* Class management */\n")
+		ps.h.print("\t/* Class management */\n")
+		ps.ch.print("/* Class management */\n")
 		
-		hps.print("\tprivate: static bool initialised;\n")
-		cps.print("bool ")
-		cps.print(className(sootclass))
-		cps.print("::initialised = false;\n")
+		ps.h.print("\tprivate: static bool initialised;\n")
+		ps.ch.print("bool ", className(sootclass), "::initialised = false;\n")
 		
-		hps.print("\tpublic: static ::java::lang::Class* CLASS;\n")
-		hps.print("\tpublic: static ")
-		hps.print(className(sootclass))
-		hps.print("* classInit(com::cowlark::cowjac::Stackframe*);\n")
-		hps.print("\n")
+		ps.h.print("\tpublic: static ::java::lang::Class* CLASS;\n")
+		ps.h.print("\tpublic: static ", className(sootclass),
+				"* classInit(com::cowlark::cowjac::Stackframe*);\n")
+		ps.h.print("\n")
 		
-		hps.print("\t/* Field declarations */\n")
-		cps.print("\n/* Field definitions */\n")
+		ps.h.print("\t/* Field declarations */\n")
+		ps.ch.print("\n/* Field definitions */\n")
 		for (f <- sootclass.getFields)
 		{
-			translateFieldDeclaration(f, hps)
-			translateFieldDefinition(f, cps)
+			translateFieldDeclaration(f, ps)
+			translateFieldDefinition(f, ps)
 		}
 		
-		hps.print("\n")
+		ps.h.print("\n")
 		
-		hps.print("\t/* Method declarations */\n")
-		cps.print("\n/* Method definitions */\n")
+		ps.h.print("\t/* Method declarations */\n")
+		ps.c.print("\n/* Method definitions */\n")
 		
 		/* Emit constructor and destructor */
 		
-		hps.print("\tpublic: ")
-		hps.print(sootclass.getShortName)
-		hps.print("();\n")
-		hps.print("\tpublic: virtual ~")
-		hps.print(sootclass.getShortName)
-		hps.print("() {};\n")
+		ps.h.print("\tpublic: ", sootclass.getShortName, "();\n")
+		ps.h.print("\tpublic: virtual ~", sootclass.getShortName, "() {};\n")
 				
 		/* Ordinary methods */
 				
 		for (m <- sootclass.getMethods)
 		{
-			translateMethodDeclaration(m, hps)
+			translateMethodDeclaration(m, ps)
 			if (m.hasActiveBody)
-				translateMethodDefinition(m, cps)
+				translateMethodDefinition(m, ps)
 		}
 		
-		hps.print("};\n")
-		hps.print("\n")
+		ps.h.print("};\n")
+		ps.h.print("\n")
 		
 		for (i <- 0 to nslevels.length-2)
-			hps.print("} /* namespace "+nslevels(i)+" */\n")
+			ps.h.print("} /* namespace ", nslevels(i), " */\n")
 		
-		hps.print("#endif\n")
+		ps.h.print("#endif\n")
 	}
 }

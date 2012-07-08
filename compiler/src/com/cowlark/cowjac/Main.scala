@@ -10,6 +10,8 @@ import java.io.File
 import java.io.PrintStream
 import java.io.BufferedOutputStream
 import java.io.FileOutputStream
+import java.io.FileWriter
+import java.io.BufferedWriter
 
 object Main
 {
@@ -125,19 +127,21 @@ object Main
 			for (c <- Scene.v.getClasses)
 			{
 				System.out.println("Writing "+c.getName+"...")
-						
+				
+				val ps = PrintSet()
+				
+				Translator.translate(c, ps)
+				
 				val hfile = new File(outputdir, c.getName + ".h")
+				val hwriter = new BufferedWriter(new FileWriter(hfile)) 
+				ps.h.emit(hwriter)
+				hwriter.close
+				
 				val ccfile = new File(outputdir, c.getName + ".cc")
-				
-				val hstream = new PrintStream(new BufferedOutputStream(
-						new FileOutputStream(hfile)))
-				var ccstream = new PrintStream(new BufferedOutputStream(
-						new FileOutputStream(ccfile)))
-				
-				Translator.translate(c, ccstream, hstream)
-				
-				hstream.close
-				ccstream.close
+				val ccwriter = new BufferedWriter(new FileWriter(ccfile))
+				ps.ch.emit(ccwriter)
+				ps.c.emit(ccwriter)
+				ccwriter.close
 			}
 		}
 		catch
