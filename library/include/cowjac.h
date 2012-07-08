@@ -2,6 +2,7 @@
 #define COWJAC_H
 
 #include <stdlib.h>
+#include <string.h>
 #include <stdint.h>
 #include <list>
 typedef bool jboolean;
@@ -22,7 +23,7 @@ namespace cowjac {
 class ContainsReferences
 {
 public:
-	virtual void ___mark() = 0;
+	virtual void mark() = 0;
 };
 
 /* All Java classes inherit from this. */
@@ -32,7 +33,7 @@ class Object : public ContainsReferences
 public:
 	Object();
 
-	void ___mark() {}
+	void mark() {}
 };
 
 /* A stack frame. */
@@ -51,6 +52,9 @@ public:
 	{
 		_parent->_next = NULL;
 	}
+
+protected:
+	void markMany(void** ptr, unsigned int count);
 
 private:
 	Stackframe* _parent;

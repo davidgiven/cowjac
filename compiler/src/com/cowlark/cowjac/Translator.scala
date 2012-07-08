@@ -85,15 +85,18 @@ import soot.jimple.CmplExpr
 import soot.jimple.DoubleConstant
 import soot.jimple.FloatConstant
 import soot.jimple.ClassConstant
+import soot.jimple.FieldRef
+import soot.SootFieldRef
+import soot.SootMethodRef
 
 object Translator extends DependencyAnalyser
 {
 	private var namecache = HashMap[String, String]()
 	
-	def reformName(jname: String, separator: String): String =
+	private def reformName(jname: String, separator: String): String =
 		jname.split('.').reduceLeft(_ + separator + _)
 		
-	def javaToCXX(jname: String): String =
+	private def javaToCXX(jname: String): String =
 	{
 		val n = namecache.get(jname)
 		if (n != None)
@@ -104,7 +107,32 @@ object Translator extends DependencyAnalyser
 		return cxxname
 	}
 	
-	def translateModifier(cm: ClassMember, ps: PrintStream)
+	private def className(c: SootClass) =
+		javaToCXX(c.getName)
+		
+	private def fieldName(f: SootFieldRef) =
+		"f_" + f.name
+		
+	private def fieldName(f: SootField) =
+		"f_" + f.getName
+	
+	private def methodName(s: String) =	
+	{
+		if (s == "<init>")
+			"init"
+		else if (s == "<clinit>")
+			"clinit"
+		else
+			"m_" + s
+	}
+	
+	private def methodName(m: SootMethodRef): String =
+		methodName(m.name)
+	
+	private def methodName(m: SootMethod): String =
+		methodName(m.getName)
+	
+	private def translateModifier(cm: ClassMember, ps: PrintStream)
 	{
 		if (cm.isPrivate)
 			ps.print("private: ")
@@ -117,7 +145,7 @@ object Translator extends DependencyAnalyser
 			ps.print("static ")			
 	}
 	
-	def translateType(t: Type, ps: PrintStream)
+	private def translateType(t: Type, ps: PrintStream)
 	{
 		object TS extends TypeSwitch
 		{
@@ -140,7 +168,7 @@ object Translator extends DependencyAnalyser
 			
 			override def caseRefType(t: RefType)
 			{
-				ps.print(javaToCXX(t.getSootClass.getName))
+				ps.print(className(t.getSootClass))
 				ps.print("*")
 			}
 			
@@ -155,13 +183,13 @@ object Translator extends DependencyAnalyser
 
 		hps.print("\t")
 		translateModifier(field, hps)
-		if (isref)
+		if (isref && field.isStatic)
 			hps.print("com::cowlark::cowjac::GlobalReference< ")
 		translateType(field.getType, hps)
-		if (isref)
+		if (isref && field.isStatic)
 			hps.print(" >")
 		hps.print(" ")
-		hps.print(field.getName)
+		hps.print(fieldName(field))
 		hps.print(";\n")
 	}
 	
@@ -178,9 +206,9 @@ object Translator extends DependencyAnalyser
 				cps.print(" >")
 				
 			cps.print(" ")
-			cps.print(javaToCXX(field.getDeclaringClass.getName))
+			cps.print(className(field.getDeclaringClass))
 			cps.print("::")
-			cps.print(field.getName)
+			cps.print(fieldName(field))
 			cps.print(";\n")
 		}
 	}
@@ -195,10 +223,8 @@ object Translator extends DependencyAnalyser
 			
 		translateType(method.getReturnType, hps)
 		hps.print(" ")
-		if (method.getName == "<init>")
-			hps.print("___init")
-		else
-			hps.print(method.getName)
+		hps.print(methodName(method))
+
 		hps.print("(com::cowlark::cowjac::Stackframe*")
 		
 		for (to <- method.getParameterTypes)
@@ -222,12 +248,9 @@ object Translator extends DependencyAnalyser
 		
 		translateType(method.getReturnType, ps)
 		ps.print(" ")
-		ps.print(javaToCXX(method.getDeclaringClass.getName))
+		ps.print(className(method.getDeclaringClass))
 		ps.print("::")
-		if (method.getName == "<init>")
-			ps.print("___init")
-		else
-			ps.print(method.getName)
+		ps.print(methodName(method))
 			
 		ps.print("(com::cowlark::cowjac::Stackframe* parentFrame")
 		
@@ -245,66 +268,60 @@ object Translator extends DependencyAnalyser
 		
 		/* Declare stackframe structure. */
 
-		val hasFrame = body.getLocals.exists(
-				local => local.getType.isInstanceOf[RefLikeType])
-
-		if (hasFrame)
-		{
-			ps.print("\tstruct frame : public com::cowlark::cowjac::Stackframe\n")
-			ps.print("\t{\n");
-			ps.print("\t\tframe(com::cowlark::cowjac::Stackframe* p):\n")
-			ps.print("\t\t\tcom::cowlark::cowjac::Stackframe(p)\n")
-			
-			for (local <- body.getLocals)
-			{
-				val t = local.getType
-				if (t.isInstanceOf[RefLikeType])
-				{
-					ps.print("\t\t\t, f")
-					ps.print(local.getName)
-					ps.print("(0)\n")
-				}
-			}
-			
-			ps.print("\t\t{}\n")
-			ps.print("\n")
-			
-			for (local <- body.getLocals)
-			{
-				val t = local.getType
-				if (t.isInstanceOf[RefLikeType])
-				{
-					ps.print("\t\t")
-					translateType(t, ps)
+		ps.print("\tstruct frame : public com::cowlark::cowjac::Stackframe\n")
+		ps.print("\t{\n");
+		ps.print("\t\tframe(com::cowlark::cowjac::Stackframe* p):\n")
+		ps.print("\t\t\tcom::cowlark::cowjac::Stackframe(p)\n")
 	
-					ps.print(" f")
-					ps.print(local.getName)
-					ps.print(";\n")
-				}
-			}
-
-			ps.print("\n")
-			ps.print("\t\tvoid ___mark()\n")
+		val reflike = body.getLocals.filter(s => s.getType.isInstanceOf[RefLikeType])
+		
+		ps.print("\t\t{\n")
+		if (!reflike.isEmpty)
+		{
+			ps.print("\t\t\tmemset(&f")
+			ps.print(reflike.first.getName)
+			ps.print(", 0, sizeof(f")
+			ps.print(reflike.first.getName)
+			ps.print(") * ")
+			ps.print(reflike.size)
+			ps.print(");\n")
+		}
+		ps.print("\t\t}\n")
+		
+		ps.print("\n")
+		
+		if (!reflike.isEmpty)
+		{
+			ps.print("\t\tvoid mark()\n")
 			ps.print("\t\t{\n")
 			
-			for (local <- body.getLocals)
-			{
-				val t = local.getType
-				if (t.isInstanceOf[RefLikeType])
-				{
-					ps.print("\t\t\tif (f")
-					ps.print(local.getName)
-					ps.print(") f")
-					ps.print(local.getName)
-					ps.print("->___mark();\n")
-				}
-			}
-
+			ps.print("\t\t\tmarkMany((void**) &f")
+			ps.print(reflike.first.getName)
+			ps.print(", ")
+			ps.print(reflike.size)
+			ps.print(");\n")
+			
 			ps.print("\t\t}\n")
-			ps.print("\t};\n");
-			ps.print("\tframe F(parentFrame);\n")
-			ps.print("\n")
 		}
+		
+		ps.print("\n")
+		ps.print("public:\n")
+		
+		for (local <- reflike)
+		{
+			val t = local.getType
+
+			ps.print("\t\t")
+			translateType(t, ps)
+
+			ps.print(" f")
+			ps.print(local.getName)
+			ps.print(";\n")
+		}
+
+		ps.print("\t};\n");
+		ps.print("\tframe F(parentFrame);\n")
+		ps.print("\n")
 		
 		/* Declare locals that don't need to go in the frame. */
 		
@@ -397,8 +414,8 @@ object Translator extends DependencyAnalyser
 			override def caseInstanceFieldRef(v: InstanceFieldRef) =
 			{
 				v.getBase.apply(VS)
-				ps.print("->")
-				ps.print(javaToCXX(v.getFieldRef.declaringClass.getName))
+				ps.print("->f_")
+				ps.print(className(v.getFieldRef.declaringClass))
 				ps.print("::")
 				ps.print(v.getFieldRef.name)
 			}
@@ -537,7 +554,7 @@ object Translator extends DependencyAnalyser
 					ps.print(")")
 					
 				ps.print("->")
-				ps.print(v.getMethodRef.name)
+				ps.print(methodName(v.getMethodRef))
 				parameters(v)
 			}
 				
@@ -550,21 +567,18 @@ object Translator extends DependencyAnalyser
 					ps.print(")")
 					
 				ps.print("->")
-				ps.print(javaToCXX(v.getMethodRef.declaringClass.getName))
+				ps.print(className(v.getMethodRef.declaringClass))
 				ps.print("::")
-				if (v.getMethodRef.name == "<init>")
-					ps.print("___init")
-				else
-					ps.print(v.getMethodRef.name)
+				ps.print(methodName(v.getMethodRef))
 					
 				parameters(v)
 			}
 			
 			override def caseStaticInvokeExpr(v: StaticInvokeExpr) =
 			{
-				ps.print(javaToCXX(v.getMethodRef.declaringClass.getName))
+				ps.print(className(v.getMethodRef.declaringClass))
 				ps.print("::")
-				ps.print(v.getMethodRef.name)
+				ps.print(methodName(v.getMethodRef))
 				
 				parameters(v)
 			}
@@ -636,7 +650,7 @@ object Translator extends DependencyAnalyser
 				if (!notnull)
 					ps.print(")")
 					
-				ps.print("->___entermonitor();\n")
+				ps.print("->enterMonitor();\n")
 			}
 			
 			override def caseExitMonitorStmt(s: ExitMonitorStmt) =
@@ -649,7 +663,7 @@ object Translator extends DependencyAnalyser
 				if (!notnull)
 					ps.print(")")
 					
-				ps.print("->___leavemonitor();\n")
+				ps.print("->leaveMonitor();\n")
 			}
 			
 			override def defaultCase(s: Any) = assert(false)
