@@ -94,7 +94,7 @@ object Translator extends DependencyAnalyser
 	private var namecache = HashMap[String, String]()
 	
 	private def reformName(jname: String, separator: String): String =
-		jname.split('.').reduceLeft(_ + separator + _)
+		jname.split(Array('.', '/')).reduceLeft(_ + separator + _)
 		
 	private def javaToCXX(jname: String): String =
 	{
@@ -107,8 +107,11 @@ object Translator extends DependencyAnalyser
 		return cxxname
 	}
 	
-	private def className(c: SootClass) =
-		javaToCXX(c.getName)
+	private def className(s: String) =
+		javaToCXX(s)
+		
+	private def className(c: SootClass): String =
+		className(c.getName)
 		
 	private def fieldName(f: SootFieldRef) =
 		"f_" + f.name
@@ -394,9 +397,8 @@ object Translator extends DependencyAnalyser
 				
 			override def caseClassConstant(s: ClassConstant) =
 			{
-				ps.print("<class ")
-				ps.print(s)
-				ps.print(">")
+				ps.print(className(s.value))
+				ps.print("::classInit(&F)->CLASS");
 			}
 				
 			override def caseThisRef(v: ThisRef) =
@@ -736,6 +738,8 @@ object Translator extends DependencyAnalyser
 		}
 		
 		hps.print("\n")
+		cps.print("\n")
+		
 		val nslevels = jname.split('.')
 		for (i <- 0 to nslevels.length-2)
 			hps.print("namespace "+nslevels(i)+" {\n")
@@ -764,6 +768,20 @@ object Translator extends DependencyAnalyser
 			hps.print(" : public com::cowlark::cowjac::Object")
 		
 		hps.print("\n{\n")
+		
+		hps.print("\t/* Class management */\n")
+		cps.print("/* Class management */\n")
+		
+		hps.print("\tprivate: static bool initialised;\n")
+		cps.print("bool ")
+		cps.print(className(sootclass))
+		cps.print("::initialised = false;\n")
+		
+		hps.print("\tpublic: static ::java::lang::Class* CLASS;\n")
+		hps.print("\tpublic: static ")
+		hps.print(className(sootclass))
+		hps.print("* classInit(com::cowlark::cowjac::Stackframe*);\n")
+		hps.print("\n")
 		
 		hps.print("\t/* Field declarations */\n")
 		cps.print("\n/* Field definitions */\n")

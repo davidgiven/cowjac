@@ -15,8 +15,9 @@ public class Main
 		m.test1();
 	}
 	
-	public void test1()
+	public Class<Main> test1()
 	{
+		return Main.class;
 	}
 	
 	public static final void main(String[] argv)
