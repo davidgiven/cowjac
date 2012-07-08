@@ -10,9 +10,11 @@ public class Main
 			return i1+i2+i3+i4+i5+i6;
 	}
 	
+	private String s = "Hello, world";
+	
 	public void test(Main m)
 	{
-		m.test1();
+		s = s + "fnord";
 	}
 	
 	public Class<Main> test1()

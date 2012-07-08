@@ -69,7 +69,7 @@ public:
 	BaseGlobalReference();
 	~BaseGlobalReference();
 
-	void ___mark();
+	void mark();
 
 protected:
 	Object* _data;
