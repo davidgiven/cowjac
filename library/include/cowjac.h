@@ -111,7 +111,7 @@ template <class T> T NullCheck(T t)
 
 /* Cast one type to another, throwing a ClassCastException if needed. */
 
-extern void CastFailed(Stackframe* f);
+extern __attribute__((noreturn)) void CastFailed(Stackframe* f);
 template <class SRC, class DEST> DEST Cast(Stackframe* f, SRC src)
 {
 	DEST dest = dynamic_cast<DEST>(src);

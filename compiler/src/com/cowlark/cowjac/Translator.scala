@@ -205,7 +205,7 @@ object Translator extends DependencyAnalyser
 			ps.h.print("\t")
 			translateModifier(field, ps.h)
 			if (isref && field.isStatic)
-				ps.h.print("com::cowlark::cowjac::GlobalReference< ")
+				ps.h.print("::com::cowlark::cowjac::GlobalReference< ")
 			translateType(field.getType, ps.h)
 			if (isref && field.isStatic)
 				ps.h.print(" >")
@@ -219,7 +219,7 @@ object Translator extends DependencyAnalyser
 				val isref = field.getType.isInstanceOf[RefLikeType]
 				
 				if (isref)
-					ps.ch.print("com::cowlark::cowjac::GlobalReference< ")
+					ps.ch.print("::com::cowlark::cowjac::GlobalReference< ")
 				translateType(field.getType, ps.ch)
 				if (isref)
 					ps.ch.print(" >")
@@ -448,12 +448,21 @@ object Translator extends DependencyAnalyser
 					ps.c.print("<staticfield ", v.toString, ">")
 				
 				override def caseArrayRef(v: ArrayRef) =
-					ps.c.print("<array ", v.toString, ">")
+				{
+					if (!notnull)
+						ps.c.print("::com::cowlark::cowjac::NullCheck(")
+					v.getBase.apply(VS)
+					if (!notnull)
+						ps.c.print(")")
+					ps.c.print("->ref(&F, ")
+					v.getIndex.apply(VS)
+					ps.c.print(")")
+				}
 				
 				override def caseLengthExpr(v: LengthExpr) =
 				{
 					if (!notnull)
-						ps.c.print("::com::cowlark::cowjac::NullPointerCheck(")
+						ps.c.print("::com::cowlark::cowjac::NullCheck(")
 					v.getOp.apply(VS)
 					if (!notnull)
 						ps.c.print(")")
@@ -542,9 +551,9 @@ object Translator extends DependencyAnalyser
 				
 				override def caseNewArrayExpr(v: NewArrayExpr) =
 				{
-					ps.c.print("::com::cowlark::cowjac::Array< ")
+					ps.c.print("new ::com::cowlark::cowjac::Array< ")
 					translateType(v.getBaseType, ps.c)
-					ps.c.print(" >::Create(&F, ")
+					ps.c.print(" >(&F, ")
 					v.getSize.apply(VS)
 					ps.c.print(")")
 				}
