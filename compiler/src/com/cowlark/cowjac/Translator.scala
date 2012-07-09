@@ -88,6 +88,8 @@ import soot.jimple.ClassConstant
 import soot.jimple.FieldRef
 import soot.SootFieldRef
 import soot.SootMethodRef
+import soot.tagkit.VisibilityAnnotationTag
+import soot.tagkit.AnnotationStringElem
 
 object Translator extends DependencyAnalyser
 {
@@ -113,7 +115,32 @@ object Translator extends DependencyAnalyser
 
 	private def methodNameImpl(m: SootMethod): String =
 	{
-		m.getName
+		for (tag <- m.getTags if tag.getName == "VisibilityAnnotationTag")
+		{
+			val vat = tag.asInstanceOf[VisibilityAnnotationTag]
+			for (a <- vat.getAnnotations if a.getType == "Lcom/cowlark/cowjac/harmony/Native;")
+			{
+				val s = a.getElemAt(0).asInstanceOf[AnnotationStringElem]
+				return s.getValue
+			}
+		}
+			
+		def hex2(i: Integer) =
+			(if (i < 16) "0" else "") + Integer.toHexString(i)
+			
+		val sb = new StringBuilder("m_")
+		for (c <- m.getBytecodeSignature)
+		{
+			if (c.isLetterOrDigit)
+				sb += c
+			else
+			{
+				sb += '_'
+				sb ++= hex2(c.toInt)
+			}
+		}
+		
+		return sb.toString
 	}
 	
 	private val methodName = Memoize(methodNameImpl)

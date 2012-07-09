@@ -1,5 +1,7 @@
 package test;
 
+import com.cowlark.cowjac.harmony.Native;
+
 public class Main
 {
 	public int manyparams(int i1, int i2, int i3, int i4, int i5, int i6)
@@ -22,6 +24,7 @@ public class Main
 		return Main.class;
 	}
 	
+	@Native("main")
 	public static final void main(String[] argv)
 	{
 		Main m = new Main();
