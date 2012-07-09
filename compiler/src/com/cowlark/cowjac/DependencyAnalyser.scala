@@ -16,6 +16,7 @@ import soot.Type
 import soot.ShortType
 import soot.SourceLocator
 import soot.jimple.JimpleBody
+import soot.NullType
 
 trait DependencyAnalyser
 {
@@ -34,6 +35,7 @@ trait DependencyAnalyser
 			override def caseLongType(t: LongType) = {}
 			override def caseFloatType(t: FloatType) = {}
 			override def caseDoubleType(t: DoubleType) = {}
+			override def caseNullType(t: NullType) = {}
 			
 			override def caseArrayType(t: ArrayType) = t.getElementType.apply(TS)
 			
@@ -62,8 +64,13 @@ trait DependencyAnalyser
 			
 			if (m.hasActiveBody)
 			{
-				for (local <- m.getActiveBody.getLocals)
+				val body = m.getActiveBody
+				
+				for (local <- body.getLocals)
 					addType(local.getType)
+					
+				for (value <- body.getUseAndDefBoxes)
+					addType(value.getValue.getType)
 			}
 		}
 		

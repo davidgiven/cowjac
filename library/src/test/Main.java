@@ -19,9 +19,9 @@ public class Main
 		s = s + "fnord";
 	}
 	
-	public Class<Main> test1()
+	public Main test1()
 	{
-		return Main.class;
+		return (Main)(Object) Main.class;
 	}
 	
 	@Native("main")

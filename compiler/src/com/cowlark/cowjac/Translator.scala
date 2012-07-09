@@ -1,31 +1,74 @@
 package com.cowlark.cowjac
-import java.io.PrintStream
 import scala.collection.JavaConversions.asScalaBuffer
 import scala.collection.JavaConversions.collectionAsScalaIterable
 import scala.collection.immutable.HashMap
+
 import com.cowlark.cowjac.DependencyAnalyser
+
+import soot.jimple.toolkits.annotation.tags.NullCheckTag
 import soot.jimple.AbstractJimpleValueSwitch
 import soot.jimple.AbstractStmtSwitch
 import soot.jimple.AddExpr
+import soot.jimple.AndExpr
+import soot.jimple.ArrayRef
 import soot.jimple.AssignStmt
 import soot.jimple.BinopExpr
+import soot.jimple.CastExpr
+import soot.jimple.CaughtExceptionRef
+import soot.jimple.ClassConstant
+import soot.jimple.CmpExpr
+import soot.jimple.CmpgExpr
+import soot.jimple.CmplExpr
 import soot.jimple.DefinitionStmt
+import soot.jimple.DivExpr
+import soot.jimple.DoubleConstant
+import soot.jimple.EnterMonitorStmt
+import soot.jimple.EqExpr
+import soot.jimple.ExitMonitorStmt
+import soot.jimple.FieldRef
+import soot.jimple.FloatConstant
 import soot.jimple.GeExpr
+import soot.jimple.GotoStmt
+import soot.jimple.GtExpr
 import soot.jimple.IdentityStmt
 import soot.jimple.IfStmt
+import soot.jimple.InstanceFieldRef
+import soot.jimple.InstanceInvokeExpr
+import soot.jimple.InstanceOfExpr
 import soot.jimple.IntConstant
+import soot.jimple.InterfaceInvokeExpr
 import soot.jimple.InvokeExpr
 import soot.jimple.InvokeStmt
-import soot.jimple.NewExpr
+import soot.jimple.LeExpr
+import soot.jimple.LengthExpr
+import soot.jimple.LongConstant
+import soot.jimple.LtExpr
+import soot.jimple.MulExpr
+import soot.jimple.NeExpr
+import soot.jimple.NegExpr
 import soot.jimple.NewArrayExpr
+import soot.jimple.NewExpr
+import soot.jimple.NullConstant
+import soot.jimple.OrExpr
 import soot.jimple.ParameterRef
+import soot.jimple.RemExpr
 import soot.jimple.ReturnStmt
 import soot.jimple.ReturnVoidStmt
+import soot.jimple.ShlExpr
+import soot.jimple.ShrExpr
 import soot.jimple.SpecialInvokeExpr
+import soot.jimple.StaticFieldRef
+import soot.jimple.StaticInvokeExpr
 import soot.jimple.StringConstant
+import soot.jimple.SubExpr
 import soot.jimple.ThisRef
+import soot.jimple.ThrowStmt
+import soot.jimple.UnopExpr
+import soot.jimple.UshrExpr
 import soot.jimple.VirtualInvokeExpr
-import soot.jimple.NullConstant
+import soot.jimple.XorExpr
+import soot.tagkit.AnnotationStringElem
+import soot.tagkit.VisibilityAnnotationTag
 import soot.toolkits.graph.BriefUnitGraph
 import soot.ArrayType
 import soot.BooleanType
@@ -37,59 +80,18 @@ import soot.FloatType
 import soot.IntType
 import soot.Local
 import soot.LongType
+import soot.PrimType
 import soot.RefLikeType
 import soot.RefType
 import soot.ShortType
 import soot.SootClass
 import soot.SootField
+import soot.SootFieldRef
 import soot.SootMethod
+import soot.SootMethodRef
 import soot.Type
 import soot.TypeSwitch
 import soot.VoidType
-import soot.jimple.toolkits.annotation.tags.NullCheckTag
-import soot.jimple.InstanceFieldRef
-import soot.jimple.StaticInvokeExpr
-import soot.jimple.ArrayRef
-import soot.jimple.LengthExpr
-import soot.jimple.ThrowStmt
-import soot.jimple.SubExpr
-import soot.jimple.MulExpr
-import soot.jimple.DivExpr
-import soot.jimple.RemExpr
-import soot.jimple.ShrExpr
-import soot.jimple.ShlExpr
-import soot.jimple.LtExpr
-import soot.jimple.GtExpr
-import soot.jimple.EqExpr
-import soot.jimple.LeExpr
-import soot.jimple.NeExpr
-import soot.jimple.XorExpr
-import soot.jimple.AndExpr
-import soot.jimple.OrExpr
-import soot.jimple.CastExpr
-import soot.jimple.GotoStmt
-import soot.jimple.InstanceOfExpr
-import soot.jimple.CaughtExceptionRef
-import soot.jimple.InstanceInvokeExpr
-import soot.jimple.InterfaceInvokeExpr
-import soot.jimple.StaticFieldRef
-import soot.jimple.EnterMonitorStmt
-import soot.jimple.ExitMonitorStmt
-import soot.jimple.UnopExpr
-import soot.jimple.NegExpr
-import soot.jimple.CmpExpr
-import soot.jimple.CmpgExpr
-import soot.jimple.LongConstant
-import soot.jimple.UshrExpr
-import soot.jimple.CmplExpr
-import soot.jimple.DoubleConstant
-import soot.jimple.FloatConstant
-import soot.jimple.ClassConstant
-import soot.jimple.FieldRef
-import soot.SootFieldRef
-import soot.SootMethodRef
-import soot.tagkit.VisibilityAnnotationTag
-import soot.tagkit.AnnotationStringElem
 
 object Translator extends DependencyAnalyser
 {
@@ -371,16 +373,16 @@ object Translator extends DependencyAnalyser
 			object VS extends AbstractJimpleValueSwitch
 			{
 				override def caseIntConstant(s: IntConstant) =
-					ps.c.print(String.valueOf(s.value))
+					ps.c.print("0x", s.value.toHexString)
 				
 				override def caseLongConstant(s: LongConstant) =
-					ps.c.print(String.valueOf(s.value), "LL")
+					ps.c.print("0x", s.value.toHexString, "LL")
 				
 				override def caseFloatConstant(s: FloatConstant) =
-					ps.c.print(String.valueOf(s.value), "fLL")
+					ps.c.print(s.value.toString, "fLL")
 				
 				override def caseDoubleConstant(s: DoubleConstant) =
-					ps.c.print(String.valueOf(s.value))
+					ps.c.print(s.value.toString)
 				
 				override def caseStringConstant(s: StringConstant) =
 				{
@@ -465,7 +467,26 @@ object Translator extends DependencyAnalyser
 					ps.c.print("<caughtexception>")
 				
 				override def caseCastExpr(v: CastExpr) =
-					ps.c.print("<cast ", v.toString, ">")
+				{
+					if (v.getCastType.isInstanceOf[PrimType])
+					{
+						ps.c.print("(")
+						translateType(v.getCastType, ps.c)
+						ps.c.print(")(")
+						v.getOp.apply(VS)
+						ps.c.print(")")
+					}
+					else
+					{
+						ps.c.print("::com::cowlark::cowjac::Cast< ")
+						translateType(v.getOp.getType, ps.c)
+						ps.c.print(", ")
+						translateType(v.getCastType, ps.c)
+						ps.c.print(" >(&F, ")
+						v.getOp.apply(VS)
+						ps.c.print(")")
+					}
+				}
 				
 				override def caseInstanceOfExpr(v: InstanceOfExpr) =
 					ps.c.print("<instanceof ", v.toString, ">")
