@@ -37,9 +37,9 @@ public:
 	{
 	}
 
-	T& ref(::com::cowlark::cowjac::Stackframe* F, jint index) const
+	T& ref(::com::cowlark::cowjac::Stackframe* F, jint index)
 	{
-		return *(T) ptr(F, index, sizeof(T));
+		return *(T*) ptr(F, index, sizeof(T));
 	}
 };
 

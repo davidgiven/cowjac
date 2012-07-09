@@ -373,10 +373,10 @@ object Translator extends DependencyAnalyser
 			object VS extends AbstractJimpleValueSwitch
 			{
 				override def caseIntConstant(s: IntConstant) =
-					ps.c.print("0x", s.value.toHexString)
+					ps.c.print("(jint)0x", s.value.toHexString)
 				
 				override def caseLongConstant(s: LongConstant) =
-					ps.c.print("0x", s.value.toHexString, "LL")
+					ps.c.print("(jlong)0x", s.value.toHexString, "LL")
 				
 				override def caseFloatConstant(s: FloatConstant) =
 					ps.c.print(s.value.toString, "fLL")
@@ -445,7 +445,8 @@ object Translator extends DependencyAnalyser
 				}
 				
 				override def caseStaticFieldRef(v: StaticFieldRef) =
-					ps.c.print("<staticfield ", v.toString, ">")
+					ps.c.print(className(v.getFieldRef.declaringClass), "::classInit(&F)->",
+							fieldName(v.getFieldRef))
 				
 				override def caseArrayRef(v: ArrayRef) =
 				{

@@ -10,7 +10,9 @@ typedef uint8_t jbyte;
 typedef int16_t jshort;
 typedef uint16_t jchar;
 typedef int32_t jint;
+typedef uint32_t juint;
 typedef int64_t jlong;
+typedef uint64_t julong;
 typedef float jfloat;
 typedef double jdouble;
 
@@ -118,6 +120,18 @@ template <class SRC, class DEST> DEST Cast(Stackframe* f, SRC src)
 	if (!dest)
 		CastFailed(f);
 	return dest;
+}
+
+/* Unsigned shift operations. */
+
+jint Ushr(jint value, jint shift)
+{
+	return (jint) (((juint)value) >> shift);
+}
+
+jlong Ushr(jlong value, jint shift)
+{
+	return (jlong) (((julong)value) >> shift);
 }
 
 }}}
