@@ -1,22 +1,23 @@
 package com.cowlark.cowjac
 import scala.collection.JavaConversions._
-import soot.SootClass
-import soot.RefType
-import soot.TypeSwitch
-import soot.LongType
-import soot.IntType
+
+import soot.jimple.FieldRef
+import soot.jimple.StaticInvokeExpr
 import soot.ArrayType
-import soot.DoubleType
-import soot.CharType
 import soot.BooleanType
-import soot.VoidType
 import soot.ByteType
+import soot.CharType
+import soot.DoubleType
 import soot.FloatType
-import soot.Type
-import soot.ShortType
-import soot.SourceLocator
-import soot.jimple.JimpleBody
+import soot.IntType
+import soot.LongType
 import soot.NullType
+import soot.RefType
+import soot.ShortType
+import soot.SootClass
+import soot.Type
+import soot.TypeSwitch
+import soot.VoidType
 
 trait DependencyAnalyser
 {
@@ -49,7 +50,7 @@ trait DependencyAnalyser
 		if (sootclass.getName != "java.lang.Object")
 			classes = classes + sootclass.getSuperclass
 			
-		classes = classes ++ sootclass.getInterfaces
+		classes ++= sootclass.getInterfaces
 			
 		for (f <- sootclass.getFields)
 			addType(f.getType)
@@ -60,7 +61,7 @@ trait DependencyAnalyser
 			for (t <- m.getParameterTypes)
 				addType(t.asInstanceOf[Type])
 				
-			classes = classes ++ m.getExceptions
+			classes ++= m.getExceptions
 			
 			if (m.hasActiveBody)
 			{
@@ -69,8 +70,16 @@ trait DependencyAnalyser
 				for (local <- body.getLocals)
 					addType(local.getType)
 					
-				for (value <- body.getUseAndDefBoxes)
-					addType(value.getValue.getType)
+				for (valueref <- body.getUseAndDefBoxes)
+				{
+					val value = valueref.getValue
+					addType(value.getType)
+					
+					if (value.isInstanceOf[FieldRef])
+						classes += value.asInstanceOf[FieldRef].getFieldRef.declaringClass
+					else if (value.isInstanceOf[StaticInvokeExpr])
+						classes += value.asInstanceOf[StaticInvokeExpr].getMethodRef.declaringClass
+				}
 			}
 		}
 		
