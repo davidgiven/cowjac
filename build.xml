@@ -40,6 +40,8 @@
 	<target name="build-compiler">
         <echo message="${ant.project.name}: ${ant.file}"/>
 
+		<mkdir dir="compiler/bin"/>
+
     	<scalac
     		srcdir="compiler/src"
     		destdir="compiler/bin"
