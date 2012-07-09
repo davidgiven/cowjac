@@ -209,7 +209,7 @@ object Translator extends DependencyAnalyser
 			translateType(field.getType, ps.h)
 			if (isref && field.isStatic)
 				ps.h.print(" >")
-			ps.h.print(" ", fieldName(field), ";\n")
+			ps.h.print(" (", fieldName(field), ");\n")
 		}
 		
 		def translateFieldDefinition(field: SootField)
@@ -224,8 +224,8 @@ object Translator extends DependencyAnalyser
 				if (isref)
 					ps.ch.print(" >")
 					
-				ps.ch.print(" ", className(field.getDeclaringClass), "::",
-						fieldName(field), ";\n")
+				ps.ch.print(" (", className(field.getDeclaringClass), "::",
+						fieldName(field), ");\n")
 			}
 		}
 		
@@ -499,7 +499,16 @@ object Translator extends DependencyAnalyser
 				}
 				
 				override def caseInstanceOfExpr(v: InstanceOfExpr) =
-					ps.c.print("<instanceof ", v.toString, ">")
+				{
+					/* The result of this is a boolean; the pointer we return
+					 * will get implicitly cast to the right type, so we don't
+					 * need to do it explicitly. */
+					ps.c.print("dynamic_cast< ")
+					translateType(v.getCheckType, ps.c)
+					ps.c.print(" >(")
+					v.getOp.apply(VS)
+					ps.c.print(")")
+				}
 				
 				override def caseAddExpr(v: AddExpr) = caseBinopExpr(v)
 				override def caseSubExpr(v: SubExpr) = caseBinopExpr(v)
