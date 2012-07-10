@@ -56,7 +56,7 @@ public:
 	}
 
 protected:
-	void markMany(void** ptr, unsigned int count);
+	void markMany(ContainsReferences** ptr, unsigned int count);
 
 private:
 	Stackframe* _parent;

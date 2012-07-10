@@ -306,7 +306,7 @@ object Translator extends DependencyAnalyser
 				ps.c.print("\t\tvoid mark()\n")
 				ps.c.print("\t\t{\n")
 				
-				ps.c.print("\t\t\tmarkMany((void**) &f",
+				ps.c.print("\t\t\tmarkMany(&f",
 						reflike.first.getName, ", ",
 						String.valueOf(reflike.size),
 						");\n")
@@ -321,14 +321,13 @@ object Translator extends DependencyAnalyser
 			{
 				val t = local.getType
 	
-				ps.c.print("\t\t")
-				translateType(t, ps.c)
-	
-				ps.c.print(" f", local.getName, ";\n")
+				ps.c.print("\t\t::com::cowlark::cowjac::ContainsReferences* ",
+						"f", local.getName, ";\n")
 			}
 	
 			ps.c.print("\t};\n");
 			ps.c.print("\tframe F(parentFrame);\n")
+			ps.c.print("\t::com::cowlark::cowjac::Object* caughtexception;\n")
 			ps.c.print("\n")
 			
 			/* Declare locals that don't need to go in the frame. */
@@ -336,12 +335,9 @@ object Translator extends DependencyAnalyser
 			for (local <- body.getLocals)
 			{
 				val t = local.getType
-				if (!t.isInstanceOf[RefLikeType])
-				{
-					ps.c.print("\t")
-					translateType(t, ps.c)
-					ps.c.print(" j", local.getName, " = 0;\n")
-				}
+				ps.c.print("\t")
+				translateType(t, ps.c)
+				ps.c.print(" j", local.getName, " = 0;\n")
 			}
 			
 			/* The method body itself. */
@@ -429,13 +425,7 @@ object Translator extends DependencyAnalyser
 					ps.c.print("this")
 					
 				override def caseLocal(v: Local) =
-				{
-					if (v.getType.isInstanceOf[RefLikeType])
-						ps.c.print("F.f")
-					else
-						ps.c.print("j")
-					ps.c.print(v.getName)
-				}
+					ps.c.print("j", v.getName)
 				
 				override def caseInstanceFieldRef(v: InstanceFieldRef) =
 				{
@@ -472,9 +462,6 @@ object Translator extends DependencyAnalyser
 					
 				override def caseParameterRef(v: ParameterRef) =
 					ps.c.print("p", String.valueOf(v.getIndex))
-				
-				override def caseCaughtExceptionRef(v: CaughtExceptionRef) =
-					ps.c.print("<caughtexception>")
 				
 				override def caseCastExpr(v: CastExpr) =
 				{
@@ -656,9 +643,26 @@ object Translator extends DependencyAnalyser
 				def caseDefinitionStmt(s: DefinitionStmt) =
 				{
 					ps.c.print("\t")
+					if (s.getLeftOp.isInstanceOf[Local] &&
+							s.getLeftOp.getType.isInstanceOf[RefLikeType])
+					{
+						/* Assign to local with is a reference; must remember
+						 * to update the stack frame to make GC work. */
+						val local = s.getLeftOp.asInstanceOf[Local]
+						ps.c.print("F.f", local.getName, " = ")
+					}
 					s.getLeftOp.apply(VS)
 					ps.c.print(" = ")
-					s.getRightOp.apply(VS)
+					
+					if (s.getRightOp.isInstanceOf[CaughtExceptionRef])
+					{
+						ps.c.print("static_cast< ")
+						translateType(s.getLeftOp.getType, ps.c)
+						ps.c.print(" >(caughtexception)")
+					}
+					else
+						s.getRightOp.apply(VS)
+						
 					ps.c.print(";\n")
 				}
 				
