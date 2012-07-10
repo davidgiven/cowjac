@@ -457,7 +457,7 @@ object Translator extends DependencyAnalyser
 					v.getOp.apply(VS)
 					if (!notnull)
 						ps.c.print(")")
-					ps.c.print("->length")
+					ps.c.print("->length()")
 				}
 					
 				override def caseParameterRef(v: ParameterRef) =

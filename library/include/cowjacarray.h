@@ -14,6 +14,11 @@ public:
 			jint size, jint elementLength);
 	virtual ~BaseArray();
 
+	jint length() const
+	{
+		return _length;
+	}
+
 protected:
 	void* ptr(::com::cowlark::cowjac::Stackframe* F, jint index,
 			jint elementLength)
