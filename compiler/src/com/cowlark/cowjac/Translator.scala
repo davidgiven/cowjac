@@ -155,8 +155,6 @@ object Translator extends DependencyAnalyser
 	{
 		if (cm.isPrivate)
 			p.print("private: ")
-		else if (cm.isProtected)
-			p.print("protected: ")
 		else
 			p.print("public: ")
 			
@@ -311,9 +309,9 @@ object Translator extends DependencyAnalyser
 			val body = method.getActiveBody
 			
 			translateType(method.getReturnType, ps.c)
-			ps.c.print(" ", className(method.getDeclaringClass), "::",
+			ps.c.print(" (", className(method.getDeclaringClass), "::",
 					methodName(method),
-					"(com::cowlark::cowjac::Stackframe* parentFrame")
+					")(com::cowlark::cowjac::Stackframe* parentFrame")
 			
 			for (i <- 0 until method.getParameterCount)
 			{
