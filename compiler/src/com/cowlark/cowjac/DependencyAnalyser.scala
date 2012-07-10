@@ -47,6 +47,8 @@ trait DependencyAnalyser
 
 		def addType(t: Type) = t.apply(TS)
 		
+		classes += sootclass
+		
 		if (sootclass.getName != "java.lang.Object")
 			classes = classes + sootclass.getSuperclass
 			

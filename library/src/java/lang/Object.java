@@ -11,7 +11,7 @@ public class Object
 		return "[" + hashCode() + "]";
 	}
 	
-    protected Object clone() throws CloneNotSupportedException
+    public Object clone() throws CloneNotSupportedException
 	{
 		throw new CloneNotSupportedException();
 	}

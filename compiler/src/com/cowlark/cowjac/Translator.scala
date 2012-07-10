@@ -657,7 +657,7 @@ object Translator extends DependencyAnalyser
 					
 					if (s.getRightOp.isInstanceOf[CaughtExceptionRef])
 					{
-						ps.c.print("static_cast< ")
+						ps.c.print("dynamic_cast< ")
 						translateType(s.getLeftOp.getType, ps.c)
 						ps.c.print(" >(caughtexception)")
 					}
@@ -770,6 +770,7 @@ object Translator extends DependencyAnalyser
 		var superclasses = Vector.empty[SootClass]
 		if (jname != "java.lang.Object")
 			superclasses = superclasses :+ sootclass.getSuperclass
+		superclasses ++= sootclass.getInterfaces
 		for (s <- superclasses)
 			ps.h.print("#include \"", s.getName, ".h\"\n")
 		
@@ -782,7 +783,8 @@ object Translator extends DependencyAnalyser
 		ps.h.print("class ", sootclass.getJavaStyleName)
 		if (!superclasses.isEmpty)
 		{
-			val superclassnames = superclasses.map((c: SootClass) => "public " + javaToCXX(c.getName))
+			val superclassnames = superclasses.map(
+					(c: SootClass) => "virtual public " + javaToCXX(c.getName))
 			ps.h.print(" : ", superclassnames.reduceLeft(_ + ", " + _))
 		}
 		else

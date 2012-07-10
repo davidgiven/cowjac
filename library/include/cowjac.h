@@ -36,6 +36,9 @@ public:
 	Object();
 
 	void mark() {}
+
+	void enterMonitor();
+	void leaveMonitor();
 };
 
 /* A stack frame. */
@@ -73,7 +76,6 @@ public:
 	BaseGlobalReference();
 	~BaseGlobalReference();
 
-	void mark();
 
 protected:
 	Object* _data;
@@ -82,7 +84,7 @@ protected:
 template <class T> class GlobalReference : public BaseGlobalReference
 {
 public:
-	GlobalReference(): BaseGlobalReference() {}
+	GlobalReference(): _data(0) {}
 	~GlobalReference() {}
 
 	template <class S> GlobalReference<T>& operator = (S val)
@@ -93,13 +95,22 @@ public:
 
 	operator T () const
 	{
-		return (T) _data;
+		return _data;
 	}
 
 	T operator -> () const
 	{
-		return (T) _data;
+		return _data;
 	}
+
+	void mark()
+	{
+		if (_data)
+			_data->mark();
+	}
+
+private:
+	T _data;
 };
 
 /* Check for and throw a NullPointerException. */
