@@ -55,6 +55,8 @@ public:
 		_parent->_next = NULL;
 	}
 
+	void mark() {}
+
 protected:
 	void markMany(ContainsReferences** ptr, unsigned int count);
 

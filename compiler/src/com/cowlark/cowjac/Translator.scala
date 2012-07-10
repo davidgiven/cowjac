@@ -2,9 +2,7 @@ package com.cowlark.cowjac
 import scala.collection.JavaConversions.asScalaBuffer
 import scala.collection.JavaConversions.collectionAsScalaIterable
 import scala.collection.immutable.HashMap
-
 import com.cowlark.cowjac.DependencyAnalyser
-
 import soot.jimple.toolkits.annotation.tags.NullCheckTag
 import soot.jimple.AbstractJimpleValueSwitch
 import soot.jimple.AbstractStmtSwitch
@@ -92,6 +90,7 @@ import soot.SootMethodRef
 import soot.Type
 import soot.TypeSwitch
 import soot.VoidType
+import soot.AbstractJasminClass
 
 object Translator extends DependencyAnalyser
 {
@@ -131,7 +130,9 @@ object Translator extends DependencyAnalyser
 			(if (i < 16) "0" else "") + Integer.toHexString(i)
 			
 		val sb = new StringBuilder("m_")
-		for (c <- m.getBytecodeSignature)
+		val namewithsignature = m.getName + "_" +
+				AbstractJasminClass.jasminDescriptorOf(m.makeRef)
+		for (c <- namewithsignature)
 		{
 			if (c.isLetterOrDigit)
 				sb += c
