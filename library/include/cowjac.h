@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
-#include <list>
+#include <math.h>
 typedef bool jboolean;
 typedef uint8_t jbyte;
 typedef int16_t jshort;
@@ -145,6 +145,38 @@ jint Ushr(jint value, jint shift)
 jlong Ushr(jlong value, jint shift)
 {
 	return (jlong) (((julong)value) >> shift);
+}
+
+int Cmp(jlong a, jlong b)
+{
+	if (a == b)
+		return 0;
+	if (a > b)
+		return 1;
+	else
+		return -1;
+}
+
+int Cmpl(double a, double b)
+{
+	if (a > b)
+		return 1;
+	if (a < b)
+		return -1;
+	if (a == b)
+		return 0;
+	return 1;
+}
+
+int Cmpg(double a, double b)
+{
+	if (a > b)
+		return 1;
+	if (a < b)
+		return -1;
+	if (a == b)
+		return 0;
+	return -1;
 }
 
 }}}
