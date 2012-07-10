@@ -232,6 +232,53 @@ object Translator extends DependencyAnalyser
 		
 		def translateMethodDeclaration(method: SootMethod)
 		{
+			var pure = false;
+			
+			if (sootclass.isInterface || method.isAbstract)
+			{
+				/* This method might be pure (in the C++ sense). That is, it's
+				 * being declared but not being implemented at this level in
+				 * the hierarchy. We now need to recursively scan the
+				 * superclasses of this class looking for a method with the
+				 * same signature. If one is not found, we're pure. */
+				
+				val subsignature = method.getSubSignature
+				var processed = Set.empty[SootClass]
+				pure = true
+				def scan(c: SootClass)
+				{
+					if (processed.contains(c))
+						return
+					processed += c
+					
+					if (c.declaresMethod(subsignature))
+					{
+						pure = false
+						return
+					}
+					
+					if (c.hasSuperclass)
+						scan(c.getSuperclass)
+					for (i <- c.getInterfaces)
+						scan(i)
+				}
+				
+				if (sootclass.hasSuperclass)
+					scan(sootclass.getSuperclass)
+				for (i <- sootclass.getInterfaces)
+					scan(i)
+				
+				/* If we're *not* pure, then there's no need to actually
+				 * declare the method here, as it's already declared; and it
+				 * will confuse C++.
+				 */
+				
+				if (!pure)
+					return
+			}
+			
+			/* Ordinary method. */
+			
 			ps.h.print("\t")
 			translateModifier(method, ps.h)
 			
@@ -253,8 +300,9 @@ object Translator extends DependencyAnalyser
 				
 			ps.h.print(")")
 			
-			if (method.isAbstract)
+			if (pure)
 				ps.h.print(" = 0")
+				
 			ps.h.print(";\n")
 		}
 		
@@ -376,10 +424,30 @@ object Translator extends DependencyAnalyser
 					ps.c.print("(jlong)0x", s.value.toHexString, "LL")
 				
 				override def caseFloatConstant(s: FloatConstant) =
-					ps.c.print(s.value.toString, "fLL")
+				{
+					val value = s.value
+					if (value.isNegInfinity)
+						ps.c.print("-INFINITY")
+					else if (value.isPosInfinity)
+						ps.c.print("INFINITY")
+					else if (value.isNaN)
+						ps.c.print("NAN")
+					else
+						ps.c.print(s.value.toString, "f")
+				}
 				
 				override def caseDoubleConstant(s: DoubleConstant) =
-					ps.c.print(s.value.toString)
+				{
+					val value = s.value
+					if (value.isNegInfinity)
+						ps.c.print("-INFINITY")
+					else if (value.isPosInfinity)
+						ps.c.print("INFINITY")
+					else if (value.isNaN)
+						ps.c.print("NAN")
+					else
+						ps.c.print(s.value.toString)
+				}
 				
 				override def caseStringConstant(s: StringConstant) =
 				{
@@ -767,11 +835,10 @@ object Translator extends DependencyAnalyser
 		ps.h.print("\n")
 		ps.ch.print("\n")
 
-		var superclasses = Vector.empty[SootClass]
-		if (jname != "java.lang.Object")
-			superclasses = superclasses :+ sootclass.getSuperclass
-		superclasses ++= sootclass.getInterfaces
-		for (s <- superclasses)
+		ps.h.print("#include \"java.lang.Object.h\"\n")
+		if (sootclass.hasSuperclass)
+			ps.h.print("#include \"", sootclass.getSuperclass.getName, ".h\"\n")
+		for (s <- sootclass.getInterfaces)
 			ps.h.print("#include \"", s.getName, ".h\"\n")
 		
 		val nslevels = jname.split('.')
@@ -779,16 +846,22 @@ object Translator extends DependencyAnalyser
 			ps.h.print("namespace ", nslevels(i), " {\n")
 		
 		ps.h.print("\n")
+
+		/* Class declaration and superclasses. */
 		
-		ps.h.print("class ", sootclass.getJavaStyleName)
-		if (!superclasses.isEmpty)
+		ps.h.print("class ", sootclass.getJavaStyleName, " : ")
+		if (sootclass.hasSuperclass)
 		{
-			val superclassnames = superclasses.map(
-					(c: SootClass) => "virtual public " + javaToCXX(c.getName))
-			ps.h.print(" : ", superclassnames.reduceLeft(_ + ", " + _))
+			val superclass = sootclass.getSuperclass
+			if ((superclass.getName == "java.lang.Object") || superclass.isInterface)
+				ps.h.print("virtual ")
+			ps.h.print("public ", className(superclass))
 		}
 		else
-			ps.h.print(" : public com::cowlark::cowjac::Object")
+			ps.h.print("public com::cowlark::cowjac::Object")
+
+		for (i <- sootclass.getInterfaces)
+			ps.h.print(", virtual public ", className(i))
 		
 		ps.h.print("\n{\n")
 		
