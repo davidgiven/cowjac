@@ -12,7 +12,7 @@ public class Object
 		return "[" + hashCode() + "]";
 	}
 	
-    public Object clone() throws CloneNotSupportedException
+    protected Object clone() throws CloneNotSupportedException
 	{
 		throw new CloneNotSupportedException();
 	}
