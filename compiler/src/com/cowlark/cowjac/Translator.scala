@@ -92,7 +92,7 @@ import soot.TypeSwitch
 import soot.VoidType
 import soot.AbstractJasminClass
 
-object Translator extends DependencyAnalyser
+object Translator extends DependencyAnalyser with SootExtensions
 {
 	private var namecache = HashMap[String, String]()
 	
@@ -861,6 +861,44 @@ object Translator extends DependencyAnalyser
 			ps.h.print("\n")
 		}
 		
+		def emitTrampoline(frommethod: SootMethod, tomethod: SootMethod)
+		{
+			ps.h.print("\n\t/* (declared in ", className(frommethod.getDeclaringClass), ") */\n")
+			
+			ps.h.print("\t")
+			translateModifier(frommethod, ps.h)
+			ps.h.print("virtual ")
+				
+			translateType(frommethod.getReturnType, ps.h)
+			ps.h.print(" ", methodName(frommethod))
+	
+			ps.h.print("(com::cowlark::cowjac::Stackframe* F")
+			
+			for (i <- 0 until frommethod.getParameterCount)
+			{
+				val t = frommethod.getParameterType(i)
+				
+				ps.h.print(", ")
+				translateType(t, ps.h)
+				ps.h.print(" p", String.valueOf(i))
+			}
+							
+			ps.h.print(")\n", "\t{\n", "\t\t")
+
+			if (!frommethod.getReturnType.isInstanceOf[VoidType])
+				ps.h.print("return ")
+				
+			ps.h.print(className(tomethod.getDeclaringClass),
+					"::", methodName(tomethod), "(F")
+					
+			for (i <- 0 until frommethod.getParameterCount)
+			{
+				val t = frommethod.getParameterType(i)
+				ps.h.print(", p", String.valueOf(i))
+			}
+			
+			ps.h.print(");\n", "\t}\n")
+		}
 
 		val jname = sootclass.getName()
 		val cxxname = javaToCXX(jname)
@@ -908,7 +946,15 @@ object Translator extends DependencyAnalyser
 		else
 			ps.h.print("public com::cowlark::cowjac::Object")
 
-		for (i <- sootclass.getInterfaces)
+		val parentinterfaces =
+			if (sootclass.hasSuperclass)
+				getAllInterfaces(sootclass.getSuperclass)
+			else
+				Set.empty[SootClass]
+		val newinterfaces = sootclass.getInterfaces.filterNot(
+				parentinterfaces.contains(_))
+
+		for (i <- newinterfaces)
 			ps.h.print(", virtual public ", className(i))
 		
 		ps.h.print("\n{\n")
@@ -934,6 +980,27 @@ object Translator extends DependencyAnalyser
 		
 		ps.h.print("\n")
 		
+		if (!sootclass.isInterface)
+		{
+			ps.h.print("\t/* Imported methods from superclasses */\n")
+			
+			var newinterfacemethods = Set.empty[SootMethod]
+			for (i <- newinterfaces)
+				newinterfacemethods ++= getAllInterfaceMethods(i)
+			for (m <- newinterfacemethods)
+			{
+				val signature = m.getSubSignature
+				if (!sootclass.declaresMethod(signature))
+				{
+					val pm = getMethodRecursively(sootclass.getSuperclass, signature)
+					if (!getAllInterfaces(pm.getDeclaringClass).contains(m.getDeclaringClass))
+						emitTrampoline(m, pm)
+				}
+			}
+			
+			ps.h.print("\n")
+		}
+
 		ps.h.print("\t/* Method declarations */\n")
 		ps.c.print("\n/* Method definitions */\n")
 		
