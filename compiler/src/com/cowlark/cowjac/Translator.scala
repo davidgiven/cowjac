@@ -178,9 +178,14 @@ object Translator extends DependencyAnalyser
 			
 			override def caseArrayType(t: ArrayType)
 			{
-				p.print("::com::cowlark::cowjac::Array< ")
-				t.getElementType.apply(TS)
-				p.print(" >*")
+				if (t.getElementType.isInstanceOf[RefLikeType])
+					p.print("::com::cowlark::cowjac::ObjectArray*")
+				else
+				{
+					p.print("::com::cowlark::cowjac::ScalarArray< ")
+					t.getElementType.apply(TS)
+					p.print(" >*")
+				}
 			}
 			
 			override def caseRefType(t: RefType)
@@ -507,14 +512,27 @@ object Translator extends DependencyAnalyser
 				
 				override def caseArrayRef(v: ArrayRef) =
 				{
+					val t = v.getType
+					var needscast = t.isInstanceOf[RefLikeType]
+					
+					if (needscast)
+					{
+						ps.c.print("dynamic_cast< ")
+						translateType(v.getType, ps.c)
+						ps.c.print(" >(")
+					}
+					
 					if (!notnull)
 						ps.c.print("::com::cowlark::cowjac::NullCheck(")
 					v.getBase.apply(VS)
 					if (!notnull)
 						ps.c.print(")")
-					ps.c.print("->ref(&F, ")
+					ps.c.print("->get(&F, ")
 					v.getIndex.apply(VS)
 					ps.c.print(")")
+					
+					if (needscast)
+						ps.c.print(")")
 				}
 				
 				override def caseLengthExpr(v: LengthExpr) =
@@ -615,9 +633,18 @@ object Translator extends DependencyAnalyser
 				
 				override def caseNewArrayExpr(v: NewArrayExpr) =
 				{
-					ps.c.print("new ::com::cowlark::cowjac::Array< ")
-					translateType(v.getBaseType, ps.c)
-					ps.c.print(" >(&F, ")
+					val t = v.getBaseType
+					
+					ps.c.print("new ")
+					if (t.isInstanceOf[RefLikeType])
+						ps.c.print("::com::cowlark::cowjac::ObjectArray")
+					else
+					{
+						ps.c.print("::com::cowlark::cowjac::ScalarArray< ")
+						translateType(t, ps.c)
+						ps.c.print(" >")
+					}
+					ps.c.print("(&F, ")
 					v.getSize.apply(VS)
 					ps.c.print(")")
 				}
@@ -706,21 +733,9 @@ object Translator extends DependencyAnalyser
 					s.getInvokeExpr.apply(VS)
 					ps.c.print(";\n")
 				}
-					
-				def caseDefinitionStmt(s: DefinitionStmt) =
+				
+				private def assignment_source(s: DefinitionStmt)
 				{
-					ps.c.print("\t")
-					if (s.getLeftOp.isInstanceOf[Local] &&
-							s.getLeftOp.getType.isInstanceOf[RefLikeType])
-					{
-						/* Assign to local with is a reference; must remember
-						 * to update the stack frame to make GC work. */
-						val local = s.getLeftOp.asInstanceOf[Local]
-						ps.c.print("F.f", local.getName, " = ")
-					}
-					s.getLeftOp.apply(VS)
-					ps.c.print(" = ")
-					
 					if (s.getRightOp.isInstanceOf[CaughtExceptionRef])
 					{
 						ps.c.print("dynamic_cast< ")
@@ -729,7 +744,42 @@ object Translator extends DependencyAnalyser
 					}
 					else
 						s.getRightOp.apply(VS)
+				}
+				
+				def caseDefinitionStmt(s: DefinitionStmt) =
+				{
+					ps.c.print("\t")
+					
+					if (s.getLeftOp.isInstanceOf[ArrayRef])
+					{
+						val target = s.getLeftOp.asInstanceOf[ArrayRef];
 						
+						if (!notnull)
+							ps.c.print("::com::cowlark::cowjac::NullCheck(")
+						target.getBase.apply(VS)
+						if (!notnull)
+							ps.c.print(")")
+						ps.c.print("->set(&F, ")
+						target.getIndex.apply(VS)
+						ps.c.print(", ")
+						assignment_source(s)
+						ps.c.print(")")
+					}
+					else
+					{
+						if (s.getLeftOp.isInstanceOf[Local] &&
+								s.getLeftOp.getType.isInstanceOf[RefLikeType])
+						{
+							/* Assign to local with is a reference; must remember
+							 * to update the stack frame to make GC work. */
+							val local = s.getLeftOp.asInstanceOf[Local]
+							ps.c.print("F.f", local.getName, " = ")
+						}
+						s.getLeftOp.apply(VS)
+						ps.c.print(" = ")
+						assignment_source(s)
+					}
+					
 					ps.c.print(";\n")
 				}
 				
