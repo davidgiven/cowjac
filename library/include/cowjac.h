@@ -165,7 +165,7 @@ int Cmpl(double a, double b)
 		return -1;
 	if (a == b)
 		return 0;
-	return 1;
+	return -1;
 }
 
 int Cmpg(double a, double b)
@@ -176,7 +176,7 @@ int Cmpg(double a, double b)
 		return -1;
 	if (a == b)
 		return 0;
-	return -1;
+	return 1;
 }
 
 }}}
