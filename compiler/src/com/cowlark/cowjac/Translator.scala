@@ -2,7 +2,6 @@ package com.cowlark.cowjac
 import scala.collection.JavaConversions.asScalaBuffer
 import scala.collection.JavaConversions.collectionAsScalaIterable
 import scala.collection.immutable.HashMap
-import com.cowlark.cowjac.DependencyAnalyser
 import soot.jimple.toolkits.annotation.tags.NullCheckTag
 import soot.jimple.AbstractJimpleValueSwitch
 import soot.jimple.AbstractStmtSwitch
@@ -92,7 +91,7 @@ import soot.TypeSwitch
 import soot.VoidType
 import soot.AbstractJasminClass
 
-object Translator extends DependencyAnalyser with SootExtensions
+object Translator extends Object with SootExtensions
 {
 	private var namecache = HashMap[String, String]()
 	
@@ -917,7 +916,7 @@ object Translator extends DependencyAnalyser with SootExtensions
 		ps.ch.print("#include \"cowjacarray.h\"\n")
 		
 		ps.h.print("\n")
-		val dependencies = getDependencies(sootclass)
+		val dependencies = getClassDependencies(sootclass)
 		for (d <- dependencies)
 		{
 			forwardDeclare(d)
