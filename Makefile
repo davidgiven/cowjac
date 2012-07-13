@@ -1,7 +1,8 @@
 CXXFLAGS = \
 	-ffunction-sections \
 	-fdata-sections \
-	-g \
+	-fomit-frame-pointer \
+	-Os -g \
 	-I cowjacOutput \
 	-I library/include
 	
