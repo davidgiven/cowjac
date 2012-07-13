@@ -160,4 +160,49 @@ trait SootExtensions
 		
 		return classes
 	}
+	
+	def isMethodPureImpl(method: SootMethod): Boolean =
+	{
+		var sootclass = method.getDeclaringClass
+		var pure = false
+			
+		if (sootclass.isInterface || method.isAbstract)
+		{
+			/* This method might be pure (in the C++ sense). That is, it's
+			 * being declared but not being implemented at this level in
+			 * the hierarchy. We now need to recursively scan the
+			 * superclasses of this class looking for a method with the
+			 * same signature. If one is not found, we're pure. */
+			
+			val subsignature = method.getSubSignature
+			var processed = Set.empty[SootClass]
+			pure = true
+			def scan(c: SootClass)
+			{
+				if (processed.contains(c))
+					return
+				processed += c
+				
+				if (c.declaresMethod(subsignature))
+				{
+					pure = false
+					return
+				}
+				
+				if (c.hasSuperclass)
+					scan(c.getSuperclass)
+				for (i <- c.getInterfaces)
+					scan(i)
+			}
+			
+			if (sootclass.hasSuperclass)
+				scan(sootclass.getSuperclass)
+			for (i <- sootclass.getInterfaces)
+				scan(i)
+		}
+		
+		return pure
+	}
+	
+	var isMethodPure = Memoize(isMethodPureImpl)
 }

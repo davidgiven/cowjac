@@ -257,50 +257,15 @@ object Translator extends Object with SootExtensions with Utils
 		
 		def translateMethodDeclaration(method: SootMethod)
 		{
-			var pure = false;
+			var pure = isMethodPure(method)
 			
-			if (sootclass.isInterface || method.isAbstract)
-			{
-				/* This method might be pure (in the C++ sense). That is, it's
-				 * being declared but not being implemented at this level in
-				 * the hierarchy. We now need to recursively scan the
-				 * superclasses of this class looking for a method with the
-				 * same signature. If one is not found, we're pure. */
+			/* If we're *not* pure, and this method has no implementation,
+			 * then there's no need to actually declare the method here, as
+			 * it's already declared; and it will confuse C++.
+			 */
 				
-				val subsignature = method.getSubSignature
-				var processed = Set.empty[SootClass]
-				pure = true
-				def scan(c: SootClass)
-				{
-					if (processed.contains(c))
-						return
-					processed += c
-					
-					if (c.declaresMethod(subsignature))
-					{
-						pure = false
-						return
-					}
-					
-					if (c.hasSuperclass)
-						scan(c.getSuperclass)
-					for (i <- c.getInterfaces)
-						scan(i)
-				}
-				
-				if (sootclass.hasSuperclass)
-					scan(sootclass.getSuperclass)
-				for (i <- sootclass.getInterfaces)
-					scan(i)
-				
-				/* If we're *not* pure, then there's no need to actually
-				 * declare the method here, as it's already declared; and it
-				 * will confuse C++.
-				 */
-				
-				if (!pure)
-					return
-			}
+			if (!pure && (method.isAbstract || sootclass.isInterface)) 
+				return
 			
 			/* Ordinary method. */
 			
@@ -1000,6 +965,7 @@ object Translator extends Object with SootExtensions with Utils
 		ps.ch.print("/* Class management */\n")
 		
 		ps.h.print("\tpublic: static ::java::lang::Class* CLASS;\n")
+		ps.ch.print("::java::lang::Class* (", className(sootclass), "::CLASS) = 0;\n")
 		ps.h.print("\tpublic: static void classInit(::com::cowlark::cowjac::Stackframe*);\n")
 		ps.h.print("\n")
 		
@@ -1025,7 +991,10 @@ object Translator extends Object with SootExtensions with Utils
 				{
 					val pm = getMethodRecursively(sootclass.getSuperclass, signature)
 					if (!getAllInterfaces(pm.getDeclaringClass).contains(m.getDeclaringClass))
-						emitTrampoline(m, pm)
+					{
+						if (!pm.isAbstract)
+							emitTrampoline(m, pm)
+					}
 				}
 			}
 			
@@ -1035,9 +1004,8 @@ object Translator extends Object with SootExtensions with Utils
 		ps.h.print("\t/* Method declarations */\n")
 		ps.c.print("\n/* Method definitions */\n")
 		
-		/* Emit constructor and destructor */
+		/* Emit destructor (required to make vtable be emitted...) */
 		
-		ps.h.print("\tpublic: ", sootclass.getShortName, "();\n")
 		ps.h.print("\tpublic: virtual ~", sootclass.getShortName, "() {};\n")
 				
 		/* Ordinary methods */
