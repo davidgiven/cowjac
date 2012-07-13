@@ -13,7 +13,7 @@ import java.io.FileOutputStream
 import java.io.FileWriter
 import java.io.BufferedWriter
 
-object Main
+object Main extends Object with Utils
 {
 	private var inputjar: String = null
 	private var inputdir: String = null
@@ -132,12 +132,12 @@ object Main
 				
 				Translator.translate(c, ps)
 				
-				val hfile = new File(outputdir, c.getName + ".h")
+				val hfile = new File(outputdir, mangleFilename(c.getName) + ".h")
 				val hwriter = new BufferedWriter(new FileWriter(hfile)) 
 				ps.h.emit(hwriter)
 				hwriter.close
 				
-				val ccfile = new File(outputdir, c.getName + ".cc")
+				val ccfile = new File(outputdir, mangleFilename(c.getName) + ".cc")
 				val ccwriter = new BufferedWriter(new FileWriter(ccfile))
 				ps.ch.emit(ccwriter)
 				ps.c.emit(ccwriter)

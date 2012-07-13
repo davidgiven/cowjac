@@ -91,7 +91,7 @@ import soot.TypeSwitch
 import soot.VoidType
 import soot.AbstractJasminClass
 
-object Translator extends Object with SootExtensions
+object Translator extends Object with SootExtensions with Utils
 {
 	private var namecache = HashMap[String, String]()
 	
@@ -113,8 +113,12 @@ object Translator extends Object with SootExtensions
 	private def fieldName(f: SootField) =
 		"f_" + f.getName
 
-	private def methodNameImpl(m: SootMethod): String =
+	private def getNativeName(sootclass: SootClass, signature: String): String =
 	{
+		if (!sootclass.declaresMethod(signature))
+			return null
+			
+		val m = sootclass.getMethod(signature)
 		for (tag <- m.getTags if tag.getName == "VisibilityAnnotationTag")
 		{
 			val vat = tag.asInstanceOf[VisibilityAnnotationTag]
@@ -124,7 +128,35 @@ object Translator extends Object with SootExtensions
 				return s.getValue
 			}
 		}
-			
+		
+		return null
+	}
+	
+	private def getRecursiveNativeName(sootclass: SootClass, signature: String): String =
+	{
+		var c = sootclass
+		
+		while (true)
+		{
+			var n = getNativeName(c, signature)
+			if (n != null)
+				return n
+				
+			if (!c.hasSuperclass)
+				return null
+			c = c.getSuperclass
+		}
+		
+		return null /* oddly necessary */
+	}
+	
+	private def methodNameImpl(m: SootMethod): String =
+	{
+		var nativename = getRecursiveNativeName(m.getDeclaringClass,
+				m.getSubSignature)
+		if (nativename != null)
+			return nativename
+		
 		def hex2(i: Integer) =
 			(if (i < 16) "0" else "") + Integer.toHexString(i)
 			
@@ -920,7 +952,7 @@ object Translator extends Object with SootExtensions
 		for (d <- dependencies)
 		{
 			forwardDeclare(d)
-			ps.ch.print("#include \"", d.getName, ".h\"\n")
+			ps.ch.print("#include \"", mangleFilename(d.getName), ".h\"\n")
 		}
 		
 		ps.h.print("\n")
@@ -928,9 +960,9 @@ object Translator extends Object with SootExtensions
 
 		ps.h.print("#include \"java.lang.Object.h\"\n")
 		if (sootclass.hasSuperclass)
-			ps.h.print("#include \"", sootclass.getSuperclass.getName, ".h\"\n")
+			ps.h.print("#include \"", mangleFilename(sootclass.getSuperclass.getName), ".h\"\n")
 		for (s <- sootclass.getInterfaces)
-			ps.h.print("#include \"", s.getName, ".h\"\n")
+			ps.h.print("#include \"", mangleFilename(s.getName), ".h\"\n")
 		
 		val nslevels = jname.split('.')
 		for (i <- 0 to nslevels.length-2)
