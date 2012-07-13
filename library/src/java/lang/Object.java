@@ -4,9 +4,15 @@ import com.cowlark.cowjac.harmony.Native;
 
 public class Object
 {
+	@Native("hashCode")
 	public native int hashCode();
+	
+	@Native("getClass")
 	public native Class<? extends Object> getClass();
 	
+    @Native("equals")
+    public native boolean equals(Object object);
+    
 	public String toString()
 	{
 		return "[" + hashCode() + "]";
@@ -17,6 +23,4 @@ public class Object
 		throw new CloneNotSupportedException();
 	}
     
-    @Native("equals")
-    public native boolean equals(Object object);
 }

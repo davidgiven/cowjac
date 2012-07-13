@@ -1,11 +1,14 @@
 package org.apache.harmony.luni.util;
 
+import com.cowlark.cowjac.harmony.Native;
+
 public class FloatingPointParser
 {
 	public static float parseFloat(String s)
 	{
-		return parseDouble(s);
+		return (float) parseDouble(s);
 	}
 	
-	public static native float parseDouble(String s);
+	@Native("parseDouble")
+	public static native double parseDouble(String s);
 }

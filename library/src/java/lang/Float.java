@@ -17,6 +17,8 @@
 
 package java.lang;
 
+import com.cowlark.cowjac.harmony.Native;
+
 /**
  * The wrapper for the primitive type {@code float}.
  * 
@@ -173,6 +175,7 @@ public final class Float extends Number implements Comparable<Float> {
      * @see #floatToRawIntBits(float)
      * @see #intBitsToFloat(int)
      */
+    @Native("floatToIntBits")
     public static native int floatToIntBits(float value);
 
     /**
@@ -187,6 +190,7 @@ public final class Float extends Number implements Comparable<Float> {
      * @see #floatToIntBits(float)
      * @see #intBitsToFloat(int)
      */
+    @Native("floatToRawIntBits")
     public static native int floatToRawIntBits(float value);
 
     /**

@@ -43,14 +43,15 @@ class Object : public ContainsReferences
 {
 public:
 	Object();
+	virtual ~Object();
 
-	void mark() {}
-	virtual void markImpl();
+	void mark();
+	virtual void markImpl() = 0;
 
 	void enterMonitor();
 	void leaveMonitor();
 
-private:
+protected:
 	bool _marked: 1;
 	bool _immutable: 1;
 };
@@ -67,12 +68,21 @@ public:
 		parent->_next = this;
 	}
 
+	Stackframe():
+		_parent(this),
+		_next(NULL)
+	{
+	}
+
 	~Stackframe()
 	{
 		_parent->_next = NULL;
 	}
 
 	void mark() {}
+
+	bool isRootFrame() const
+	{ return _parent == this; }
 
 protected:
 	void markMany(ContainsReferences** ptr, unsigned int count);
@@ -101,12 +111,12 @@ private:
 
 /* Check for and throw a NullPointerException. */
 
-extern void throwNullPointerException();
+extern void ThrowNullPointerException();
 
 template <class T> T NullCheck(T t)
 {
 	if (!t)
-		throwNullPointerException();
+		ThrowNullPointerException();
 	return t;
 }
 
@@ -123,17 +133,17 @@ template <class SRC, class DEST> DEST Cast(Stackframe* f, SRC src)
 
 /* Unsigned shift operations. */
 
-jint Ushr(jint value, jint shift)
+static inline jint Ushr(jint value, jint shift)
 {
 	return (jint) (((juint)value) >> shift);
 }
 
-jlong Ushr(jlong value, jint shift)
+static inline jlong Ushr(jlong value, jint shift)
 {
 	return (jlong) (((julong)value) >> shift);
 }
 
-int Cmp(jlong a, jlong b)
+static inline int Cmp(jlong a, jlong b)
 {
 	if (a == b)
 		return 0;
@@ -143,7 +153,7 @@ int Cmp(jlong a, jlong b)
 		return -1;
 }
 
-int Cmpl(double a, double b)
+static inline int Cmpl(double a, double b)
 {
 	if (a > b)
 		return 1;
@@ -154,7 +164,7 @@ int Cmpl(double a, double b)
 	return -1;
 }
 
-int Cmpg(double a, double b)
+static inline int Cmpg(double a, double b)
 {
 	if (a > b)
 		return 1;

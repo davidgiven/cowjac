@@ -10,8 +10,7 @@ namespace cowjac {
 class BaseArray : public java::lang::Object
 {
 public:
-	BaseArray(::com::cowlark::cowjac::Stackframe* parentFrame,
-			jint size, jint elementLength);
+	BaseArray(jint size, jint elementLength);
 	virtual ~BaseArray();
 
 	jint length() const
@@ -20,8 +19,7 @@ public:
 	}
 
 protected:
-	void* ptr(::com::cowlark::cowjac::Stackframe* F, jint index,
-			jint elementLength) const
+	void* ptr(jint index, jint elementLength) const
 	{
 		return (void*)(_data + index*elementLength);
 	}
@@ -37,22 +35,32 @@ private:
 template <class T> class PrimitiveArray : public BaseArray
 {
 public:
-	PrimitiveArray(::com::cowlark::cowjac::Stackframe* parentFrame, jint length):
-		BaseArray(parentFrame, length, sizeof(T))
+	PrimitiveArray(jint length):
+		BaseArray(length, sizeof(T))
 	{
 	}
 
 	void set(::com::cowlark::cowjac::Stackframe* F, jint index, T value)
 	{
 		boundsCheck(F, index);
-		T& ref = *(T*) ptr(F, index, sizeof(T));
+		setUnchecked(index, value);
+	}
+
+	void setUnchecked(jint index, T value)
+	{
+		T& ref = *(T*) ptr(index, sizeof(T));
 		ref = value;
 	}
 
 	T get(::com::cowlark::cowjac::Stackframe* F, jint index) const
 	{
 		boundsCheck(F, index);
-		return *(T*) ptr(F, index, sizeof(T));
+		return getUnchecked(index);
+	}
+
+	T getUnchecked(jint index) const
+	{
+		return *(T*) ptr(index, sizeof(T));
 	}
 };
 
@@ -62,7 +70,7 @@ template <class T> class ScalarArray : public PrimitiveArray<T>
 {
 public:
 	ScalarArray(::com::cowlark::cowjac::Stackframe* parentFrame, jint length):
-		PrimitiveArray<T>(parentFrame, length)
+		PrimitiveArray<T>(length)
 	{
 	}
 };
@@ -72,7 +80,12 @@ public:
 class ObjectArray : public PrimitiveArray< ::java::lang::Object* >
 {
 public:
-	ObjectArray(::com::cowlark::cowjac::Stackframe* parentFrame, jint length);
+	ObjectArray(::com::cowlark::cowjac::Stackframe* parentFrame, jint length):
+		PrimitiveArray< ::java::lang::Object* >(length)
+	{
+	}
+
+	void markImpl();
 };
 
 }}}

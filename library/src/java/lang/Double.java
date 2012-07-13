@@ -17,6 +17,8 @@
 
 package java.lang;
 
+import com.cowlark.cowjac.harmony.Native;
+
 /**
  * The wrapper for the primitive type {@code double}.
  * 
@@ -147,6 +149,7 @@ public final class Double extends Number implements Comparable<Double> {
      * @see #doubleToRawLongBits(double)
      * @see #longBitsToDouble(long)
      */
+    @Native("doubleToLongBits")
     public static native long doubleToLongBits(double value);
 
     /**
@@ -161,6 +164,7 @@ public final class Double extends Number implements Comparable<Double> {
      * @see #doubleToLongBits(double)
      * @see #longBitsToDouble(long)
      */
+    @Native("doubleToRawLongBits")
     public static native long doubleToRawLongBits(double value);
 
     /**

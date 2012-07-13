@@ -1,12 +1,23 @@
 package java.lang;
 
-public class Class<T extends Object>
+import com.cowlark.cowjac.harmony.Native;
+
+public abstract class Class<T extends Object>
 {
-	public native boolean isPrimitive();
-	public native boolean isArray();
-	public native Class<?> getSuperclass();
-	public native Class<?> getComponentType();
-	public native String getName();
+	@Native("isPrimitive")
+	public boolean isPrimitive() { return false; }
+	
+	@Native("isArray")
+	public boolean isArray() { return false; }
+	
+	@Native("getSuperclass")
+	public Class<?> getSuperclass() { return null; }
+	
+	@Native("getComponentType")
+	public Class<?> getComponentType() { return null; }
+	
+	@Native("getName")
+	public String getName() { return "class"; }
 	
 	public final boolean desiredAssertionStatus()
 	{

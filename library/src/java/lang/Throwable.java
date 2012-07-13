@@ -17,6 +17,8 @@
 
 package java.lang;
 
+import com.cowlark.cowjac.harmony.Native;
+
 
 /**
  * The superclass of all classes which can be thrown by the virtual machine. The
@@ -122,6 +124,7 @@ public class Throwable implements java.io.Serializable {
      *
      * @return this {@code Throwable} instance.
      */
+    @Native("fillInStackTrace")
     public native Throwable fillInStackTrace();
 
     /**
@@ -158,7 +161,7 @@ public class Throwable implements java.io.Serializable {
      * 
      * @return an array of StackTraceElement representing the stack
      */
-    private native StackTraceElement[] getStackTraceImpl();
+//    private native StackTraceElement[] getStackTraceImpl();
 
     /**
      * Returns the array of stack trace elements of this {@code Throwable}. Each
@@ -171,9 +174,9 @@ public class Throwable implements java.io.Serializable {
      *         not change the call stack stored in this {@code Throwable}.
      * @see #printStackTrace()
      */
-    public StackTraceElement[] getStackTrace() {
-        return getInternalStackTrace().clone();
-    }
+//    public StackTraceElement[] getStackTrace() {
+//        return getInternalStackTrace().clone();
+//    }
 
     /**
      * Sets the array of stack trace elements. Each {@code StackTraceElement}
@@ -240,12 +243,12 @@ public class Throwable implements java.io.Serializable {
      * 
      * @return an array of StackTraceElement representing the stack
      */
-    private StackTraceElement[] getInternalStackTrace() {
-        if (stackTrace == null) {
-            stackTrace = getStackTraceImpl();
-        }
-        return stackTrace;
-    }
+//    private StackTraceElement[] getInternalStackTrace() {
+//        if (stackTrace == null) {
+//            stackTrace = getStackTraceImpl();
+//        }
+//        return stackTrace;
+//    }
 
     /**
      * Writes a printable representation of this {@code Throwable}'s stack trace
