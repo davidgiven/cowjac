@@ -3,7 +3,7 @@
 	<name>cowjac-compiler</name>
 	<comment></comment>
 	<projects>
-		<project>cava</project>
+		<project>cowjac</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>
