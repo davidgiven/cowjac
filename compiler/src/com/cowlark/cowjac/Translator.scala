@@ -208,11 +208,7 @@ object Translator extends DependencyAnalyser with SootExtensions
 	
 			ps.h.print("\t")
 			translateModifier(field, ps.h)
-			if (isref && field.isStatic)
-				ps.h.print("::com::cowlark::cowjac::GlobalReference< ")
 			translateType(field.getType, ps.h)
-			if (isref && field.isStatic)
-				ps.h.print(" >")
 			ps.h.print(" (", fieldName(field), ");\n")
 		}
 		
@@ -222,12 +218,7 @@ object Translator extends DependencyAnalyser with SootExtensions
 			{
 				val isref = field.getType.isInstanceOf[RefLikeType]
 				
-				if (isref)
-					ps.ch.print("::com::cowlark::cowjac::GlobalReference< ")
 				translateType(field.getType, ps.ch)
-				if (isref)
-					ps.ch.print(" >")
-					
 				ps.ch.print(" (", className(field.getDeclaringClass), "::",
 						fieldName(field), ");\n")
 			}
@@ -313,6 +304,7 @@ object Translator extends DependencyAnalyser with SootExtensions
 		{
 			val body = method.getActiveBody
 			
+			ps.c.print("\n/* ", method.getSubSignature, " */\n")
 			translateType(method.getReturnType, ps.c)
 			ps.c.print(" (", className(method.getDeclaringClass), "::",
 					methodName(method),
@@ -329,6 +321,12 @@ object Translator extends DependencyAnalyser with SootExtensions
 			
 			ps.c.print(")\n{\n")
 			
+			/* If this is a static method, ensure the class has been
+			 * initialised. */
+			
+			if (method.isStatic)
+				ps.c.print("\t", className(sootclass), "::classInit(parentFrame);\n")
+				
 			/* Declare stackframe structure. */
 	
 			ps.c.print("\tstruct frame : public com::cowlark::cowjac::Stackframe\n")
@@ -476,7 +474,7 @@ object Translator extends DependencyAnalyser with SootExtensions
 							}
 							
 							ps.ch.print("};\n")
-							ps.ch.print("static ::com::cowlark::cowjac::GlobalReference< ::java::lang::String* > sc",
+							ps.ch.print("static ::java::lang::String* sc",
 									String.valueOf(n), ";\n")
 							
 							n
@@ -491,7 +489,11 @@ object Translator extends DependencyAnalyser with SootExtensions
 					ps.c.print("0")
 					
 				override def caseClassConstant(s: ClassConstant) =
-					ps.c.print(className(s.value), "::classInit(&F)->CLASS");
+					if (s.value == sootclass)
+						ps.c.print("CLASS")
+					else
+						ps.c.print("(", className(s.value), "::classInit(&F), ",
+								className(s.value), "::CLASS)");
 					
 				override def caseThisRef(v: ThisRef) =
 					ps.c.print("this")
@@ -507,8 +509,12 @@ object Translator extends DependencyAnalyser with SootExtensions
 				}
 				
 				override def caseStaticFieldRef(v: StaticFieldRef) =
-					ps.c.print(className(v.getFieldRef.declaringClass), "::classInit(&F)->",
-							fieldName(v.getFieldRef))
+					if (v.getFieldRef.declaringClass == sootclass)
+						ps.c.print(fieldName(v.getFieldRef))
+					else
+						ps.c.print("(", className(v.getFieldRef.declaringClass), "::classInit(&F), ",
+								className(v.getFieldRef.declaringClass), "::", fieldName(v.getFieldRef),
+								")")
 				
 				override def caseArrayRef(v: ArrayRef) =
 				{
@@ -962,12 +968,8 @@ object Translator extends DependencyAnalyser with SootExtensions
 		ps.h.print("\t/* Class management */\n")
 		ps.ch.print("/* Class management */\n")
 		
-		ps.h.print("\tprivate: static bool initialised;\n")
-		ps.ch.print("bool ", className(sootclass), "::initialised = false;\n")
-		
 		ps.h.print("\tpublic: static ::java::lang::Class* CLASS;\n")
-		ps.h.print("\tpublic: static ", className(sootclass),
-				"* classInit(com::cowlark::cowjac::Stackframe*);\n")
+		ps.h.print("\tpublic: static void classInit(::com::cowlark::cowjac::Stackframe*);\n")
 		ps.h.print("\n")
 		
 		ps.h.print("\t/* Field declarations */\n")
@@ -979,6 +981,27 @@ object Translator extends DependencyAnalyser with SootExtensions
 		}
 		
 		ps.h.print("\n")
+		ps.h.print("\tpublic: class Marker : public ::com::cowlark::cowjac::ContainsGlobalReferences\n")
+		ps.h.print("\t{\n")
+		ps.h.print("\t\tpublic: void mark();\n")
+		ps.h.print("\t};\n")
+		ps.h.print("\n")
+		
+		ps.ch.print("\n/* Class marker */\n")
+		ps.ch.print("\n")
+		ps.ch.print("static ", className(sootclass), "::Marker marker;\n")
+		ps.ch.print("void ", className(sootclass), "::Marker::mark()\n")
+		ps.ch.print("{\n")
+		for (f <- sootclass.getFields)
+		{
+			if (f.isStatic && f.getType.isInstanceOf[RefLikeType])
+			{
+				ps.ch.print("\tif (",
+						className(sootclass), "::", fieldName(f), ") ",
+						className(sootclass), "::", fieldName(f), "->mark();\n")
+			}
+		}
+		ps.ch.print("}\n")
 		
 		if (!sootclass.isInterface)
 		{
@@ -1023,6 +1046,33 @@ object Translator extends DependencyAnalyser with SootExtensions
 		
 		for (i <- 0 to nslevels.length-2)
 			ps.h.print("} /* namespace ", nslevels(i), " */\n")
+		
+		/* Class initialisation. */
+			
+		ps.c.print("void ", className(sootclass),
+				"::classInit(::com::cowlark::cowjac::Stackframe* F)\n")
+		ps.c.print("{\n")
+		ps.c.print("\tstatic bool initialised = false;\n")
+		ps.c.print("\tif (!initialised)\n")
+		ps.c.print("\t{\n")
+		ps.c.print("\t\t::com::cowlark::cowjac::SystemLock lock;\n")
+		ps.c.print("\t\tif (!initialised)\n")
+		ps.c.print("\t\t{\n")
+		ps.c.print("\t\t\tinitialised = true;\n")
+		
+		if (sootclass.hasSuperclass)
+			ps.c.print("\t\t\t", className(sootclass.getSuperclass), "::classInit(F);\n")
+		for (i <- newinterfaces)
+			ps.c.print("\t\t\t", className(i), "::classInit(F);\n")
+		if (sootclass.declaresMethod("void <clinit>()"))
+		{
+			val m = sootclass.getMethod("void <clinit>()")
+			ps.c.print("\t\t\t", className(sootclass), "::", methodName(m), "(F);\n")
+		}
+		
+		ps.c.print("\t\t}\n")
+		ps.c.print("\t}\n")
+		ps.c.print("}\n")
 		
 		ps.h.print("#endif\n")
 	}

@@ -20,6 +20,15 @@ namespace com {
 namespace cowlark {
 namespace cowjac {
 
+/* An RAII global system lock. */
+
+class SystemLock
+{
+public:
+	SystemLock();
+	~SystemLock();
+};
+
 /* Indicates that an object contains object references. */
 
 class ContainsReferences
@@ -68,49 +77,21 @@ private:
 	Stackframe* _next;
 };
 
-/* An object reference root. */
+/* An entity which adds itself to the global root list. */
 
-class BaseGlobalReference : public ContainsReferences
+class ContainsGlobalReferences : public ContainsReferences
 {
 public:
-	BaseGlobalReference();
-	~BaseGlobalReference();
+	ContainsGlobalReferences();
+	~ContainsGlobalReferences();
 
-
-protected:
-	Object* _data;
-};
-
-template <class T> class GlobalReference : public BaseGlobalReference
-{
-public:
-	GlobalReference(): _data(0) {}
-	~GlobalReference() {}
-
-	template <class S> GlobalReference<T>& operator = (S val)
-	{
-		_data = val;
-		return *this;
-	}
-
-	operator T () const
-	{
-		return _data;
-	}
-
-	T operator -> () const
-	{
-		return _data;
-	}
-
-	void mark()
-	{
-		if (_data)
-			_data->mark();
-	}
+	static ContainsGlobalReferences* getFirstReference()
+	{ return _first; }
 
 private:
-	T _data;
+	ContainsGlobalReferences* _next;
+	ContainsGlobalReferences* _prev;
+	static ContainsGlobalReferences* _first;
 };
 
 /* Check for and throw a NullPointerException. */
