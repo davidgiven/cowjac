@@ -11,5 +11,6 @@ OBJS = $(patsubst %.cc, %.o, $(SRCS))
 all: $(OBJS)
 
 %.o: %.cc
-	clang $(CXXFLAGS) -c '$<' -o '$@'
+	@echo '$<'
+	@clang $(CXXFLAGS) -c '$<' -o '$@'
 	
