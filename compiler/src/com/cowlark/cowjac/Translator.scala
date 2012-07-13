@@ -979,32 +979,9 @@ object Translator extends Object with SootExtensions
 			translateFieldDefinition(f)
 		}
 		
-		ps.h.print("\n")
-		ps.h.print("\tpublic: class Marker : public ::com::cowlark::cowjac::ContainsGlobalReferences\n")
-		ps.h.print("\t{\n")
-		ps.h.print("\t\tpublic: void mark();\n")
-		ps.h.print("\t};\n")
-		ps.h.print("\n")
-		
-		ps.ch.print("\n/* Class marker */\n")
-		ps.ch.print("\n")
-		ps.ch.print("static ", className(sootclass), "::Marker marker;\n")
-		ps.ch.print("void ", className(sootclass), "::Marker::mark()\n")
-		ps.ch.print("{\n")
-		for (f <- sootclass.getFields)
-		{
-			if (f.isStatic && f.getType.isInstanceOf[RefLikeType])
-			{
-				ps.ch.print("\tif (",
-						className(sootclass), "::", fieldName(f), ") ",
-						className(sootclass), "::", fieldName(f), "->mark();\n")
-			}
-		}
-		ps.ch.print("}\n")
-		
 		if (!sootclass.isInterface)
 		{
-			ps.h.print("\t/* Imported methods from superclasses */\n")
+			ps.h.print("\n\t/* Imported methods from superclasses */\n")
 			
 			var newinterfacemethods = Set.empty[SootMethod]
 			for (i <- newinterfaces)
@@ -1040,15 +1017,54 @@ object Translator extends Object with SootExtensions
 				translateMethodDefinition(m)
 		}
 		
-		ps.h.print("};\n")
+		/* GC marking of member variables. */
+		
+		ps.h.print("\n\tprotected: void markImpl();\n")
+		
+		ps.c.print("void ", className(sootclass), "::markImpl()\n")
+		ps.c.print("{\n")
+		
+		if (sootclass.hasSuperclass)
+			ps.c.print("\t", className(sootclass.getSuperclass), "::markImpl();\n")
+		for (f <- sootclass.getFields)
+		{
+			if (!f.isStatic && f.getType.isInstanceOf[RefLikeType])
+			{
+				ps.c.print("\tif (", fieldName(f), ") ",
+						fieldName(f), "->mark();\n")
+			}
+		}
+
+		ps.c.print("}\n")
+		
+		/* GC marking of class variables. */
+		
+		ps.h.print("\n")
+		ps.h.print("\tpublic: class Marker : public ::com::cowlark::cowjac::ContainsGlobalReferences\n")
+		ps.h.print("\t{\n")
+		ps.h.print("\t\tpublic: void mark();\n")
+		ps.h.print("\t};\n")
 		ps.h.print("\n")
 		
-		for (i <- 0 to nslevels.length-2)
-			ps.h.print("} /* namespace ", nslevels(i), " */\n")
-		
+		ps.ch.print("\n/* Class marker */\n")
+		ps.ch.print("\n")
+		ps.ch.print("static ", className(sootclass), "::Marker marker;\n")
+		ps.ch.print("void ", className(sootclass), "::Marker::mark()\n")
+		ps.ch.print("{\n")
+		for (f <- sootclass.getFields)
+		{
+			if (f.isStatic && f.getType.isInstanceOf[RefLikeType])
+			{
+				ps.ch.print("\tif (",
+						className(sootclass), "::", fieldName(f), ") ",
+						className(sootclass), "::", fieldName(f), "->mark();\n")
+			}
+		}
+		ps.ch.print("}\n")
+
 		/* Class initialisation. */
 			
-		ps.c.print("void ", className(sootclass),
+		ps.c.print("\nvoid ", className(sootclass),
 				"::classInit(::com::cowlark::cowjac::Stackframe* F)\n")
 		ps.c.print("{\n")
 		ps.c.print("\tstatic bool initialised = false;\n")
@@ -1072,6 +1088,14 @@ object Translator extends Object with SootExtensions
 		ps.c.print("\t\t}\n")
 		ps.c.print("\t}\n")
 		ps.c.print("}\n")
+		
+		/* Header footer. */
+		
+		ps.h.print("};\n")
+		ps.h.print("\n")
+		
+		for (i <- 0 to nslevels.length-2)
+			ps.h.print("} /* namespace ", nslevels(i), " */\n")
 		
 		ps.h.print("#endif\n")
 	}

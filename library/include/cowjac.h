@@ -45,9 +45,14 @@ public:
 	Object();
 
 	void mark() {}
+	virtual void markImpl();
 
 	void enterMonitor();
 	void leaveMonitor();
+
+private:
+	bool _marked: 1;
+	bool _immutable: 1;
 };
 
 /* A stack frame. */
