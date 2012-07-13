@@ -1,0 +1,6 @@
+trunk
+compiler/bin
+library/bin
+*.d
+*.o
+
