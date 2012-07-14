@@ -93,6 +93,7 @@ import soot.AbstractJasminClass
 import soot.tagkit.Host
 import soot.Scene
 import soot.jimple.TableSwitchStmt
+import soot.NullType
 
 object Translator extends Object with SootExtensions with Utils
 {
@@ -264,6 +265,7 @@ object Translator extends Object with SootExtensions with Utils
 			override def caseLongType(t: LongType) = p.print("jlong")
 			override def caseFloatType(t: FloatType) = p.print("jfloat")
 			override def caseDoubleType(t: DoubleType) = p.print("jdouble")
+			override def caseNullType(t: NullType) = p.print("::java::lang::Object*")
 			
 			override def caseArrayType(t: ArrayType)
 			{
