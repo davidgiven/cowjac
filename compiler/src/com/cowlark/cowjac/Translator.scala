@@ -92,6 +92,7 @@ import soot.VoidType
 import soot.AbstractJasminClass
 import soot.tagkit.Host
 import soot.Scene
+import soot.jimple.TableSwitchStmt
 
 object Translator extends Object with SootExtensions with Utils
 {
@@ -911,6 +912,28 @@ object Translator extends Object with SootExtensions with Utils
 					ps.c.print("->leaveMonitor();\n")
 				}
 				
+				override def caseTableSwitchStmt(s: TableSwitchStmt) =
+				{
+					ps.c.print("\tswitch (")
+					s.getKey.apply(VS)
+					ps.c.print(")\n")
+					ps.c.print("\t{\n")
+					
+					var value = s.getLowIndex
+					for (to <- s.getTargets)
+					{
+						ps.c.print("\t\tcase ",
+								value.toString, ": goto ",
+								label(to.asInstanceOf[soot.Unit]),
+								";\n")
+						value += 1
+					}
+					
+					ps.c.print("\t\tdefault: goto ",
+							label(s.getDefaultTarget), ";\n")
+					ps.c.print("\t}\n")
+				}
+				
 				override def defaultCase(s: Any) = assert(false)
 			}
 			
@@ -919,11 +942,14 @@ object Translator extends Object with SootExtensions with Utils
 			{
 				/* If this is a target of a jump, then we need to add a label.
 				 * An instruction is not a jump target if the only way to it is
-				 * from the preceding instruciton. */
+				 * from the preceding instruction. */
 				
 				val junction = 
 					if ((ug.getPredsOf(unit).size == 1) && (ug.getPredsOf(unit).get(0) == oldunit))
-						false
+						if (oldunit.isInstanceOf[TableSwitchStmt])
+							true
+						else
+							false
 					else
 						true
 					
