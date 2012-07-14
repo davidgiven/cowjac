@@ -94,6 +94,7 @@ import soot.tagkit.Host
 import soot.Scene
 import soot.jimple.TableSwitchStmt
 import soot.NullType
+import soot.jimple.LookupSwitchStmt
 
 object Translator extends Object with SootExtensions with Utils
 {
@@ -936,6 +937,26 @@ object Translator extends Object with SootExtensions with Utils
 					ps.c.print("\t}\n")
 				}
 				
+				override def caseLookupSwitchStmt(s: LookupSwitchStmt) =
+				{
+					ps.c.print("\tswitch (")
+					s.getKey.apply(VS)
+					ps.c.print(")\n")
+					ps.c.print("\t{\n")
+					
+					for (i <- 0 until s.getTargetCount)
+					{
+						ps.c.print("\t\tcase ",
+								s.getLookupValue(i).toString, ": goto ",
+								label(s.getTarget(i)),
+								";\n")
+					}
+					
+					ps.c.print("\t\tdefault: goto ",
+							label(s.getDefaultTarget), ";\n")
+					ps.c.print("\t}\n")
+				}
+				
 				override def defaultCase(s: Any) = assert(false)
 			}
 			
@@ -948,7 +969,7 @@ object Translator extends Object with SootExtensions with Utils
 				
 				val junction = 
 					if ((ug.getPredsOf(unit).size == 1) && (ug.getPredsOf(unit).get(0) == oldunit))
-						if (oldunit.isInstanceOf[TableSwitchStmt])
+						if (oldunit.isInstanceOf[TableSwitchStmt] || oldunit.isInstanceOf[LookupSwitchStmt])
 							true
 						else
 							false
