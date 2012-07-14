@@ -1048,7 +1048,7 @@ object Translator extends Object with SootExtensions with Utils
 		
 		ps.ch.print("\n/* Class marker */\n")
 		ps.ch.print("\n")
-		ps.ch.print("static ", className(sootclass), "::Marker marker;\n")
+		ps.ch.print("static ", className(sootclass), "::Marker* marker = 0;\n")
 		ps.ch.print("void ", className(sootclass), "::Marker::mark()\n")
 		ps.ch.print("{\n")
 		for (f <- sootclass.getFields)
@@ -1075,6 +1075,7 @@ object Translator extends Object with SootExtensions with Utils
 		ps.c.print("\t\t{\n")
 		ps.c.print("\t\t\tinitialised = true;\n")
 		
+		ps.c.print("\t\t\tmarker = new ", className(sootclass), "::Marker();\n")
 		if (sootclass.hasSuperclass)
 			ps.c.print("\t\t\t", className(sootclass.getSuperclass), "::classInit(F);\n")
 		for (i <- newinterfaces)
