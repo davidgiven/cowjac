@@ -42,6 +42,9 @@ public:
 class Object : public ContainsReferences
 {
 public:
+	void* operator new (size_t size);
+	void operator delete (void* ptr);
+
 	Object();
 	virtual ~Object();
 

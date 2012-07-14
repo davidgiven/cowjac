@@ -9,7 +9,8 @@ CXXFLAGS = \
 SRCS = \
 	$(wildcard cowjacOutput/*.cc) \
 	library/rt/cowjac.cc \
-	library/rt/classes.cc
+	library/rt/classes.cc \
+	library/rt/gc.cc
 	
 OBJS = $(patsubst %.cc, %.o, $(SRCS))
 DEPS = $(patsubst %.cc, %.d, $(SRCS))
