@@ -20,6 +20,8 @@ package java.lang;
 import java.io.Serializable;
 import java.io.UnsupportedEncodingException;
 import java.util.Comparator;
+import java.util.Locale;
+import com.cowlark.cowjac.harmony.UCharacter;
 import com.cowlark.cowjac.harmony.VM;
 
 /**
@@ -1449,9 +1451,9 @@ public final class String implements Serializable, Comparable<String>,
      * @return a new string containing the lowercase characters equivalent to
      *         the characters in this string.
      */
-//    public String toLowerCase() {
-//        return toLowerCase(Locale.getDefault());
-//    }
+    public String toLowerCase() {
+        return toLowerCase(Locale.getDefault());
+    }
 
     /**
      * Converts the characters in this string to lowercase, using the specified
@@ -1462,20 +1464,20 @@ public final class String implements Serializable, Comparable<String>,
      * @return a new string containing the lowercase characters equivalent to
      *         the characters in this string.
      */
-//    public String toLowerCase(Locale locale) {
-//        String result = UCharacter.toLowerCase(locale, this);
-//        
-//        // Must return self if chars unchanged
-//        if (count != result.count) {
-//            return result;
-//        }
-//        for (int i = 0; i < count; ++i) {
-//            if (value[offset + i] != result.value[result.offset + i]) {
-//                return result;
-//            }
-//        }
-//        return this;
-//    }
+    public String toLowerCase(Locale locale) {
+        String result = UCharacter.toLowerCase(locale, this);
+        
+        // Must return self if chars unchanged
+        if (count != result.count) {
+            return result;
+        }
+        for (int i = 0; i < count; ++i) {
+            if (value[offset + i] != result.value[result.offset + i]) {
+                return result;
+            }
+        }
+        return this;
+    }
 
     /**
      * Returns this string.

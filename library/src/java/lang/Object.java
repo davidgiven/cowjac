@@ -1,5 +1,6 @@
 package java.lang;
 
+import java.io.IOException;
 import com.cowlark.cowjac.harmony.Native;
 
 public class Object

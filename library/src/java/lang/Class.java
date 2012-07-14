@@ -4,6 +4,9 @@ import com.cowlark.cowjac.harmony.Native;
 
 public abstract class Class<T extends Object>
 {
+	@Native("isInstance")
+	public native boolean isInstance(Object o);
+	
 	@Native("isPrimitive")
 	public boolean isPrimitive() { return false; }
 	

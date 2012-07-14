@@ -15,4 +15,7 @@ public class VM
 		_internSet.put(s, s);
 		return s;
 	}
+	
+	@Native("deleteOnExit")
+	public native static void deleteOnExit();
 }
