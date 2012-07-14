@@ -1,6 +1,7 @@
 #include <assert.h>
 #include "cowjac.h"
 #include "cowjacarray.h"
+#include "cowjacclass.h"
 #include "test.Main.h"
 #include "org.apache.harmony.luni.util.FloatingPointParser.h"
 #include "org.apache.harmony.luni.util.NumberConverter.h"
@@ -14,6 +15,8 @@ using com::cowlark::cowjac::ContainsGlobalReferences;
 using com::cowlark::cowjac::ContainsReferences;
 using com::cowlark::cowjac::BaseArray;
 using com::cowlark::cowjac::ObjectArray;
+using com::cowlark::cowjac::PrimitiveClass;
+using java::lang::Class;
 
 ContainsGlobalReferences* ContainsGlobalReferences::_first = NULL;
 
@@ -91,10 +94,11 @@ void com::cowlark::cowjac::Object::leaveMonitor()
 
 /* Arrays */
 
-BaseArray::BaseArray(jint length, jint elementLength):
+BaseArray::BaseArray(Class* arrayClass, jint length, jint elementLength):
 		_data(new jbyte[length * elementLength]),
 		_length(length),
-		_elementLength(elementLength)
+		_elementLength(elementLength),
+		_class(arrayClass)
 {
 	memset(_data, 0, _length * _elementLength);
 }
@@ -182,6 +186,24 @@ java::lang::String* org::apache::harmony::luni::util::NumberConverter::convert(S
 int main(int argc, const char* argv[])
 {
 	Stackframe frame;
+
+	com::cowlark::cowjac::PrimitiveBooleanClassConstant
+		= new PrimitiveClass(&frame, "boolean");
+	com::cowlark::cowjac::PrimitiveByteClassConstant
+		= new PrimitiveClass(&frame, "byte");
+	com::cowlark::cowjac::PrimitiveCharClassConstant
+		= new PrimitiveClass(&frame, "char");
+	com::cowlark::cowjac::PrimitiveShortClassConstant
+		= new PrimitiveClass(&frame, "short");
+	com::cowlark::cowjac::PrimitiveIntClassConstant
+		= new PrimitiveClass(&frame, "int");
+	com::cowlark::cowjac::PrimitiveLongClassConstant
+		= new PrimitiveClass(&frame, "long");
+	com::cowlark::cowjac::PrimitiveFloatClassConstant
+		= new PrimitiveClass(&frame, "float");
+	com::cowlark::cowjac::PrimitiveDoubleClassConstant
+		= new PrimitiveClass(&frame, "double");
+
 	test::Main::main(&frame, NULL);
 	return 0;
 }

@@ -1,22 +1,19 @@
 package test;
 
+import java.util.HashMap;
+import java.util.Map;
 import com.cowlark.cowjac.harmony.Native;
 
 public class Main
 {
-	private static class S1
-	{
-		public static int i = 1;
-	}
-	
-	private static class S2 extends S1
-	{
-		public static int j = 2;
-	}
-	
 	@Native("main")
 	public static final void main(String[] argv)
 	{
-		S2 s2 = new S2();
+		Map<Integer, Integer> map = new HashMap<Integer, Integer>();
+		
+		for (int i = 0; i < 100; i++)
+			map.put(i, -i);
+		
+		int i = map.get(42);
 	}
 }

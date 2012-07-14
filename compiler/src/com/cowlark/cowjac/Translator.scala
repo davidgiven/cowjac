@@ -90,6 +90,8 @@ import soot.Type
 import soot.TypeSwitch
 import soot.VoidType
 import soot.AbstractJasminClass
+import soot.tagkit.Host
+import soot.Scene
 
 object Translator extends Object with SootExtensions with Utils
 {
@@ -107,18 +109,8 @@ object Translator extends Object with SootExtensions with Utils
 	private def className(c: SootClass): String =
 		className(c.getName)
 		
-	private def fieldName(f: SootFieldRef) =
-		"f_" + f.name
-		
-	private def fieldName(f: SootField) =
-		"f_" + f.getName
-
-	private def getNativeName(sootclass: SootClass, signature: String): String =
+	private def getNativeTag(m: Host): String =
 	{
-		if (!sootclass.declaresMethod(signature))
-			return null
-			
-		val m = sootclass.getMethod(signature)
 		for (tag <- m.getTags if tag.getName == "VisibilityAnnotationTag")
 		{
 			val vat = tag.asInstanceOf[VisibilityAnnotationTag]
@@ -132,13 +124,47 @@ object Translator extends Object with SootExtensions with Utils
 		return null
 	}
 	
-	private def getRecursiveNativeName(sootclass: SootClass, signature: String): String =
+	private def getNativeMethodName(sootclass: SootClass, signature: String): String =
+	{
+		if (!sootclass.declaresMethod(signature))
+			return null
+			
+		return getNativeTag(sootclass.getMethod(signature))
+	}
+	
+	private def getNativeFieldName(sootclass: SootClass, signature: String): String =
+	{
+		if (!sootclass.declaresField(signature))
+			return null
+			
+		return getNativeTag(sootclass.getField(signature))
+	}
+	
+	private def getRecursiveNativeMethodName(sootclass: SootClass, signature: String): String =
 	{
 		var c = sootclass
 		
 		while (true)
 		{
-			var n = getNativeName(c, signature)
+			var n = getNativeMethodName(c, signature)
+			if (n != null)
+				return n
+				
+			if (!c.hasSuperclass)
+				return null
+			c = c.getSuperclass
+		}
+		
+		return null /* oddly necessary */
+	}
+	
+	private def getRecursiveNativeFieldName(sootclass: SootClass, signature: String): String =
+	{
+		var c = sootclass
+		
+		while (true)
+		{
+			var n = getNativeFieldName(c, signature)
 			if (n != null)
 				return n
 				
@@ -152,7 +178,7 @@ object Translator extends Object with SootExtensions with Utils
 	
 	private def methodNameImpl(m: SootMethod): String =
 	{
-		var nativename = getRecursiveNativeName(m.getDeclaringClass,
+		var nativename = getRecursiveNativeMethodName(m.getDeclaringClass,
 				m.getSubSignature)
 		if (nativename != null)
 			return nativename
@@ -181,6 +207,37 @@ object Translator extends Object with SootExtensions with Utils
 	
 	private def methodName(m: SootMethodRef): String =
 		methodName(m.resolve)
+	
+	private def fieldNameImpl(m: SootField): String =
+	{
+		var nativename = getRecursiveNativeFieldName(m.getDeclaringClass,
+				m.getSubSignature)
+		if (nativename != null)
+			return nativename
+		
+		def hex2(i: Integer) =
+			(if (i < 16) "0" else "") + Integer.toHexString(i)
+			
+		val sb = new StringBuilder("f_")
+		val name = m.getName
+		for (c <- name)
+		{
+			if (c.isLetterOrDigit)
+				sb += c
+			else
+			{
+				sb += '_'
+				sb ++= hex2(c.toInt)
+			}
+		}
+		
+		return sb.toString
+	}
+	
+	private val fieldName = Memoize(fieldNameImpl)
+	
+	private def fieldName(m: SootFieldRef): String =
+		fieldName(m.resolve)
 	
 	private def translateModifier(cm: ClassMember, p: Printer)
 	{
@@ -227,6 +284,36 @@ object Translator extends Object with SootExtensions with Utils
 			override def defaultCase(t: Type) = assert(false)
 		}
 		t.apply(TS)
+	}
+	
+	private def classConstant(t: Type): String =
+	{
+		var result: String = null;
+		
+		object TS extends TypeSwitch
+		{
+			override def caseBooleanType(t: BooleanType) = result = "::com::cowlark::cowjac::PrimitiveBooleanClassConstant"
+			override def caseByteType(t: ByteType) = result = "::com::cowlark::cowjac::PrimitiveByteClassConstant"
+			override def caseCharType(t: CharType) = result = "::com::cowlark::cowjac::PrimitiveCharClassConstant"
+			override def caseShortType(t: ShortType) = result = "::com::cowlark::cowjac::PrimitiveShortClassConstant"
+			override def caseIntType(t: IntType) = result = "::com::cowlark::cowjac::PrimitiveIntClassConstant"
+			override def caseLongType(t: LongType) = result = "::com::cowlark::cowjac::PrimitiveLongClassConstant"
+			override def caseFloatType(t: FloatType) = result = "::com::cowlark::cowjac::PrimitiveFloatClassConstant"
+			override def caseDoubleType(t: DoubleType) = result = "::com::cowlark::cowjac::PrimitiveDoubleClassConstant"
+			
+			override def caseArrayType(t: ArrayType)
+			{
+				t.getArrayElementType().apply(TS)
+				result += "->getArrayType(&F)"
+			}
+			
+			override def caseRefType(t: RefType) =
+				result = className(t.getSootClass) + "::getClassConstant(&F)"
+			
+			override def defaultCase(t: Type) = assert(false)
+		}
+		t.apply(TS)
+		return result
 	}
 	
 	def translate(sootclass: SootClass, ps: PrintSet)
@@ -485,11 +572,14 @@ object Translator extends Object with SootExtensions with Utils
 					ps.c.print("0")
 					
 				override def caseClassConstant(s: ClassConstant) =
-					if (s.value == sootclass)
-						ps.c.print("CLASS")
-					else
-						ps.c.print("(", className(s.value), "::classInit(&F), ",
-								className(s.value), "::CLASS)");
+				{
+					/* s.value is a path-style classname, with / separators.
+					 * We want one with . instead. */
+
+					val name = s.value.replace('/', '.')
+					val sc = Scene.v.getSootClass(name)
+					ps.c.print(classConstant(sc.getType))
+				}
 					
 				override def caseThisRef(v: ThisRef) =
 					ps.c.print("this")
@@ -646,7 +736,7 @@ object Translator extends Object with SootExtensions with Utils
 						translateType(t, ps.c)
 						ps.c.print(" >")
 					}
-					ps.c.print("(&F, ")
+					ps.c.print("(&F, ", classConstant(t), "->getArrayType(&F), ")
 					v.getSize.apply(VS)
 					ps.c.print(")")
 				}
@@ -911,6 +1001,7 @@ object Translator extends Object with SootExtensions with Utils
 		
 		ps.ch.print("#include \"cowjac.h\"\n")
 		ps.ch.print("#include \"cowjacarray.h\"\n")
+		ps.ch.print("#include \"cowjacclass.h\"\n")
 		
 		ps.h.print("\n")
 		val dependencies = getClassDependencies(sootclass)
@@ -964,9 +1055,10 @@ object Translator extends Object with SootExtensions with Utils
 		ps.h.print("\t/* Class management */\n")
 		ps.ch.print("/* Class management */\n")
 		
-		ps.h.print("\tpublic: static ::java::lang::Class* CLASS;\n")
-		ps.ch.print("::java::lang::Class* (", className(sootclass), "::CLASS) = 0;\n")
+		ps.h.print("\tpublic: static ::java::lang::Class* getClassConstant(::com::cowlark::cowjac::Stackframe*);\n")
 		ps.h.print("\tpublic: static void classInit(::com::cowlark::cowjac::Stackframe*);\n")
+		if (!sootclass.declaresMethod("java.lang.Class getClass()"))
+			ps.h.print("\tpublic: virtual ::java::lang::Class* getClass(::com::cowlark::cowjac::Stackframe* F) { return getClassConstant(F); }\n")
 		ps.h.print("\n")
 		
 		ps.h.print("\t/* Field declarations */\n")
@@ -1063,7 +1155,22 @@ object Translator extends Object with SootExtensions with Utils
 		ps.ch.print("}\n")
 
 		/* Class initialisation. */
-			
+		
+		ps.c.print("\n::java::lang::Class* ", className(sootclass),
+				"::getClassConstant(::com::cowlark::cowjac::Stackframe* F)\n")
+		ps.c.print("{\n")
+		ps.c.print("\tstatic ::java::lang::Class* classConstant = 0;\n")
+		ps.c.print("\tclassInit(F);\n")
+		ps.c.print("\tif (!classConstant)\n")
+		ps.c.print("\t{\n")
+		ps.c.print("\t\t::com::cowlark::cowjac::SystemLock lock;\n")
+		ps.c.print("\t\tif (!classConstant)\n")
+		ps.c.print("\t\t\tclassConstant = new ::com::cowlark::cowjac::SimpleClass(F, \"" +
+				sootclass.getName, "\");\n")
+		ps.c.print("\t}\n")
+		ps.c.print("\treturn classConstant;\n")
+		ps.c.print("}\n")
+		
 		ps.c.print("\nvoid ", className(sootclass),
 				"::classInit(::com::cowlark::cowjac::Stackframe* F)\n")
 		ps.c.print("{\n")
@@ -1095,8 +1202,8 @@ object Translator extends Object with SootExtensions with Utils
 		ps.h.print("};\n")
 		ps.h.print("\n")
 		
-		for (i <- 0 to nslevels.length-2)
-			ps.h.print("} /* namespace ", nslevels(i), " */\n")
+		for (i <- 0 until nslevels.length-1)
+			ps.h.print("} /* namespace ", nslevels(nslevels.length-1-i), " */\n")
 		
 		ps.h.print("#endif\n")
 	}

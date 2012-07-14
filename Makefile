@@ -8,7 +8,8 @@ CXXFLAGS = \
 	
 SRCS = \
 	$(wildcard cowjacOutput/*.cc) \
-	library/rt/cowjac.cc
+	library/rt/cowjac.cc \
+	library/rt/classes.cc
 	
 OBJS = $(patsubst %.cc, %.o, $(SRCS))
 DEPS = $(patsubst %.cc, %.d, $(SRCS))
@@ -17,7 +18,7 @@ all: cowjac
 
 cowjac: $(OBJS)
 	@echo linking...
-	@g++ -Wl,--gc-sections -g -o '$@' $(OBJS)
+	@g++ -Os -Wl,--gc-sections -g -o '$@' $(OBJS)
 
 %.o: %.cc
 	@echo '$@'

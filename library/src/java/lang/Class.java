@@ -16,6 +16,12 @@ public abstract class Class<T extends Object>
 	@Native("getComponentType")
 	public Class<?> getComponentType() { return null; }
 	
+	@Native("getArrayType")
+	public native Class<?> getArrayType();
+	
+	@Native("_arrayType")
+	private Class<?> _arrayType;
+	
 	@Native("getName")
 	public String getName() { return "class"; }
 	

@@ -2,6 +2,7 @@
 #define COWJACARRAY_H
 
 #include "java.lang.Object.h"
+#include "java.lang.Class.h"
 
 namespace com {
 namespace cowlark {
@@ -10,13 +11,16 @@ namespace cowjac {
 class BaseArray : public java::lang::Object
 {
 public:
-	BaseArray(jint size, jint elementLength);
+	BaseArray(::java::lang::Class* arrayClass, jint size, jint elementLength);
 	virtual ~BaseArray();
 
 	jint length() const
 	{
 		return _length;
 	}
+
+	public: ::java::lang::Class* getClass(::com::cowlark::cowjac::Stackframe* F)
+	{ return _class; }
 
 protected:
 	void* ptr(jint index, jint elementLength) const
@@ -30,13 +34,14 @@ private:
 	jbyte* _data;
 	jint _length;
 	jint _elementLength;
+	::java::lang::Class* _class;
 };
 
 template <class T> class PrimitiveArray : public BaseArray
 {
 public:
-	PrimitiveArray(jint length):
-		BaseArray(length, sizeof(T))
+	PrimitiveArray(::java::lang::Class* arrayClass, jint length):
+		BaseArray(arrayClass, length, sizeof(T))
 	{
 	}
 
@@ -69,8 +74,9 @@ public:
 template <class T> class ScalarArray : public PrimitiveArray<T>
 {
 public:
-	ScalarArray(::com::cowlark::cowjac::Stackframe* parentFrame, jint length):
-		PrimitiveArray<T>(length)
+	ScalarArray(::com::cowlark::cowjac::Stackframe* parentFrame,
+			::java::lang::Class* arrayClass, jint length):
+		PrimitiveArray<T>(arrayClass, length)
 	{
 	}
 };
@@ -80,8 +86,9 @@ public:
 class ObjectArray : public PrimitiveArray< ::java::lang::Object* >
 {
 public:
-	ObjectArray(::com::cowlark::cowjac::Stackframe* parentFrame, jint length):
-		PrimitiveArray< ::java::lang::Object* >(length)
+	ObjectArray(::com::cowlark::cowjac::Stackframe* parentFrame,
+			::java::lang::Class* arrayClass, jint length):
+		PrimitiveArray< ::java::lang::Object* >(arrayClass, length)
 	{
 	}
 
