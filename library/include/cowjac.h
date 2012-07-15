@@ -1,3 +1,8 @@
+/* cowjac © 2012 David Given
+ * This file is licensed under the Simplified BSD license. Please see
+ * COPYING.cowjac for the full text.
+ */
+
 #ifndef COWJAC_H
 #define COWJAC_H
 
