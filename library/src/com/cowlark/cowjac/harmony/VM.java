@@ -16,6 +16,6 @@ public class VM
 		return s;
 	}
 	
-	@Native("deleteOnExit")
-	public native static void deleteOnExit();
+	public static void deleteOnExit()
+	{}
 }

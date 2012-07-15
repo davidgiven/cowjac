@@ -187,21 +187,21 @@ class OSFileSystem implements IFileSystem {
     /*
      * Scatter/gather calls.
      */
-    public long readv(long fileDescriptor, long[] addresses, int[] offsets,
-            int[] lengths, int size) throws IOException {
-        long bytesRead = readvImpl(fileDescriptor, addresses, offsets, lengths,
-                size);
-        if (bytesRead < -1) {
-            throw new IOException();
-        }
-        return bytesRead;
-    }
-
-    private native long readvImpl(long fileDescriptor, long[] addresses,
-            int[] offsets, int[] lengths, int size);
-
-    public native long writev(long fileDescriptor, Object[] buffers,
-            int[] offsets, int[] lengths, int size) throws IOException;
+//    public long readv(long fileDescriptor, long[] addresses, int[] offsets,
+//            int[] lengths, int size) throws IOException {
+//        long bytesRead = readvImpl(fileDescriptor, addresses, offsets, lengths,
+//                size);
+//        if (bytesRead < -1) {
+//            throw new IOException();
+//        }
+//        return bytesRead;
+//    }
+//
+//    private native long readvImpl(long fileDescriptor, long[] addresses,
+//            int[] offsets, int[] lengths, int size);
+//
+//    public native long writev(long fileDescriptor, Object[] buffers,
+//            int[] offsets, int[] lengths, int size) throws IOException;
 
     private native int closeImpl(long fileDescriptor);
 
@@ -246,16 +246,16 @@ class OSFileSystem implements IFileSystem {
 
     private native long openImpl(byte[] fileName, int mode);
 
-    public long transfer(long fileHandler, FileDescriptor socketDescriptor,
-            long offset, long count) throws IOException {
-        long result = transferImpl(fileHandler, socketDescriptor, offset, count);
-        if (result < 0)
-            throw new IOException();
-        return result;
-    }
-
-    private native long transferImpl(long fileHandler,
-            FileDescriptor socketDescriptor, long offset, long count);
+//    public long transfer(long fileHandler, FileDescriptor socketDescriptor,
+//            long offset, long count) throws IOException {
+//        long result = transferImpl(fileHandler, socketDescriptor, offset, count);
+//        if (result < 0)
+//            throw new IOException();
+//        return result;
+//    }
+//
+//    private native long transferImpl(long fileHandler,
+//            FileDescriptor socketDescriptor, long offset, long count);
 
     public long ttyAvailable() throws IOException {
         long nChar = ttyAvailableImpl();

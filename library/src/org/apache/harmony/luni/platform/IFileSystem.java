@@ -63,11 +63,11 @@ public interface IFileSystem {
     public long write(long fileDescriptor, byte[] bytes, int offset, int length)
             throws IOException;
 
-    public long readv(long fileDescriptor, long[] addresses, int[] offsets,
-            int[] lengths, int size) throws IOException;
-
-    public long writev(long fileDescriptor, Object[] buffers, int[] offsets,
-            int[] lengths, int size) throws IOException;
+//    public long readv(long fileDescriptor, long[] addresses, int[] offsets,
+//            int[] lengths, int size) throws IOException;
+//
+//    public long writev(long fileDescriptor, Object[] buffers, int[] offsets,
+//            int[] lengths, int size) throws IOException;
 
     // Required to support direct byte buffers
     public long readDirect(long fileDescriptor, long address, int offset,
@@ -99,8 +99,8 @@ public interface IFileSystem {
 
     public long open(byte[] fileName, int mode) throws FileNotFoundException;
 
-    public long transfer(long fileHandler, FileDescriptor socketDescriptor,
-            long offset, long count) throws IOException;
+//    public long transfer(long fileHandler, FileDescriptor socketDescriptor,
+//            long offset, long count) throws IOException;
 
     public long ttyAvailable() throws IOException;
 

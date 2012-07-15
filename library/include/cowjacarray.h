@@ -22,13 +22,13 @@ public:
 	public: ::java::lang::Class* getClass(::com::cowlark::cowjac::Stackframe* F)
 	{ return _class; }
 
-protected:
-	void* ptr(jint index, jint elementLength) const
+	protected: void* ptr(jint index, jint elementLength) const
 	{
 		return (void*)(_data + index*elementLength);
 	}
 
-	void boundsCheck(::com::cowlark::cowjac::Stackframe* f, jint index) const;
+
+	public: void boundsCheck(::com::cowlark::cowjac::Stackframe* f, jint index) const;
 
 private:
 	jbyte* _data;
@@ -78,6 +78,11 @@ public:
 			::java::lang::Class* arrayClass, jint length):
 		PrimitiveArray<T>(arrayClass, length)
 	{
+	}
+
+	void* ptr(jint index) const
+	{
+		return PrimitiveArray<T>::ptr(index, sizeof(T));
 	}
 };
 

@@ -10,7 +10,10 @@ SRCS = \
 	$(wildcard cowjacOutput/*.cc) \
 	library/rt/cowjac.cc \
 	library/rt/classes.cc \
-	library/rt/gc.cc
+	library/rt/gc.cc \
+	library/rt/system.cc \
+	library/rt/osmemory.cc \
+	library/rt/osfilesystem.cc
 	
 OBJS = $(patsubst %.cc, %.o, $(SRCS))
 DEPS = $(patsubst %.cc, %.d, $(SRCS))
@@ -19,11 +22,11 @@ all: cowjac
 
 cowjac: $(OBJS)
 	@echo linking...
-	@g++ -Os -Wl,--gc-sections -g -o '$@' $(OBJS)
+	@clang++ -Os -Wl,--gc-sections -g -o '$@' $(OBJS) -lrt
 
 %.o: %.cc
 	@echo '$@'
-	@g++ $(CXXFLAGS) -c $< -o $@
+	@clang++ $(CXXFLAGS) -c $< -o $@
 	
 %.d: %.cc
 	@echo '$@'

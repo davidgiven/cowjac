@@ -17,6 +17,8 @@
 
 package java.io;
 
+import com.cowlark.cowjac.harmony.Native;
+
 /**
  * The lowest-level representation of a file, device, or
  * socket. If is often used for wrapping an operating system "handle". Some
@@ -56,7 +58,8 @@ public final class FileDescriptor {
      * Represents a link to any underlying OS resources for this FileDescriptor.
      * A value of -1 indicates that this FileDescriptor is invalid.
      */
-    long descriptor = -1;
+    @Native("descriptor")
+    public long descriptor = -1;
     
     boolean readOnly = false; 
 

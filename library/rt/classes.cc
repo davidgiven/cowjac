@@ -2,6 +2,7 @@
 #include "cowjac.h"
 #include "cowjacarray.h"
 #include "cowjacclass.h"
+#include "java.lang.reflect.Array.h"
 
 using com::cowlark::cowjac::ShimClass;
 using com::cowlark::cowjac::SimpleClass;
@@ -47,8 +48,20 @@ Class* Class::getArrayType(Stackframe* F)
 	return _arrayType;
 }
 
+jboolean Class::isInstance(Stackframe* F, java::lang::Object* object)
+{
+	assert(false);
+}
+
 ArrayClass::ArrayClass(Stackframe* F, ::java::lang::Class* element):
 		ShimClass(F),
 		_element(element)
 {
+}
+
+java::lang::Object* java::lang::reflect::Array::newInstance
+		(Stackframe* F, java::lang::Class* c, int size)
+{
+	assert(false);
+	return 0;
 }

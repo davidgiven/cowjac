@@ -1,7 +1,7 @@
 package test;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.io.FileDescriptor;
+import java.io.FileOutputStream;
 import com.cowlark.cowjac.harmony.Native;
 
 public class Main
@@ -9,11 +9,10 @@ public class Main
 	@Native("main")
 	public static final void main(String[] argv)
 	{
-		Map<Integer, Integer> map = new HashMap<Integer, Integer>();
+		String s = new String(new char[] { 'H', 'e', 'l', 'l', 'o', ' ', 'w', 'o', 'r', 'l', 'd', '\n' });
 		
-		for (int i = 0; i < 100; i++)
-			map.put(i, -i);
+		FileDescriptor fd = FileDescriptor.out;
+		FileOutputStream fos = new FileOutputStream(fd);
 		
-		int i = map.get(42);
 	}
 }

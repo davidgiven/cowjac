@@ -181,11 +181,15 @@ object Translator extends Object with SootExtensions with Utils
 	
 	private def methodNameImpl(m: SootMethod): String =
 	{
+		/* If the method has a specific native name, use that. */
+		
 		var nativename = getRecursiveNativeMethodName(m.getDeclaringClass,
 				m.getSubSignature)
 		if (nativename != null)
 			return nativename
 		
+		/* Otherwise, mangle the name. */
+			
 		def hex2(i: Integer) =
 			(if (i < 16) "0" else "") + Integer.toHexString(i)
 			

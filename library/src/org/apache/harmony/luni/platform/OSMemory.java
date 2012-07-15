@@ -18,6 +18,7 @@
 package org.apache.harmony.luni.platform;
 
 import java.io.IOException;
+import com.cowlark.cowjac.harmony.Native;
 
 
 /**
@@ -76,6 +77,7 @@ final class OSMemory implements IMemorySystem {
      * @return <code>true</code> if the platform is little endian or
      * <code>false</code> if it is big endian.
      */
+    @Native("isLittleEndianImpl")
     private static native boolean isLittleEndianImpl();
 
     /**
@@ -111,6 +113,7 @@ final class OSMemory implements IMemorySystem {
      * 
      * @return the size of a pointer, in bytes.
      */
+    @Native("getPointerSizeImpl")
     private static native int getPointerSizeImpl();
 
     public int getPointerSize() {
