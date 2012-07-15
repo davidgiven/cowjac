@@ -22,11 +22,11 @@ all: cowjac
 
 cowjac: $(OBJS)
 	@echo linking...
-	@clang++ -Os -Wl,--gc-sections -g -o '$@' $(OBJS) -lrt
+	@g++ -Os -Wl,--gc-sections -g -o '$@' $(OBJS) -lrt
 
 %.o: %.cc
 	@echo '$@'
-	@clang++ $(CXXFLAGS) -c $< -o $@
+	@g++ $(CXXFLAGS) -c $< -o $@
 	
 %.d: %.cc
 	@echo '$@'
