@@ -54,6 +54,9 @@ public:
 	void enterMonitor();
 	void leaveMonitor();
 
+	void makeImmutable()
+	{ _immutable = true; }
+
 protected:
 	bool _marked: 1;
 	bool _immutable: 1;

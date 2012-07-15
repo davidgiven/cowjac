@@ -19,6 +19,11 @@ package java.lang;
 
 import java.io.Serializable;
 import java.io.UnsupportedEncodingException;
+import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
+import java.nio.charset.Charset;
+import java.nio.charset.IllegalCharsetNameException;
+import java.nio.charset.UnsupportedCharsetException;
 import java.util.Comparator;
 import java.util.Locale;
 import com.cowlark.cowjac.harmony.UCharacter;
@@ -130,9 +135,9 @@ public final class String implements Serializable, Comparable<String>,
 
     private int hashCode;
 
-//    private static Charset DefaultCharset;
-//
-//    private static Charset lastCharset;
+    private static Charset DefaultCharset;
+
+    private static Charset lastCharset;
 
     static {
         ascii = new char[128];
@@ -212,24 +217,23 @@ public final class String implements Serializable, Comparable<String>,
      *             data.length}.
      */
     public String(byte[] data, int start, int length) {
-    	throw new UnsupportedOperationException();
-        // start + length could overflow, start/length maybe MaxInt
-//        if (start >= 0 && 0 <= length && length <= data.length - start) {
-//            offset = 0;
-//            Charset charset = defaultCharset();
-//            int result;
-//            CharBuffer cb = charset
-//                    .decode(ByteBuffer.wrap(data, start, length));
-//            if ((result = cb.length()) > 0) {
-//                value = cb.array();
-//                count = result;
-//            } else {
-//                count = 0;
-//                value = new char[0];
-//            }
-//        } else {
-//            throw new StringIndexOutOfBoundsException();
-//        }
+//         start + length could overflow, start/length maybe MaxInt
+        if (start >= 0 && 0 <= length && length <= data.length - start) {
+            offset = 0;
+            Charset charset = defaultCharset();
+            int result;
+            CharBuffer cb = charset
+                    .decode(ByteBuffer.wrap(data, start, length));
+            if ((result = cb.length()) > 0) {
+                value = cb.array();
+                count = result;
+            } else {
+                count = 0;
+                value = new char[0];
+            }
+        } else {
+            throw new StringIndexOutOfBoundsException();
+        }
     }
 
     /**
@@ -290,34 +294,33 @@ public final class String implements Serializable, Comparable<String>,
      */
     public String(byte[] data, int start, int length, final String encoding)
             throws UnsupportedEncodingException {
-    	throw new UnsupportedOperationException();
-//        if (encoding == null) {
-//            throw new NullPointerException();
-//        }
-//        // start + length could overflow, start/length maybe MaxInt
-//        if (start >= 0 && 0 <= length && length <= data.length - start) {
-//            offset = 0;
-//            Charset charset = getCharset(encoding);
-//
-//            int result;
-//        	CharBuffer cb;
-//            try {
-//            	cb = charset.decode(ByteBuffer.wrap(data, start, length));
-//            } catch (Exception e) {
-//            	// do nothing. according to spec: 
-//            	// behavior is unspecified for invalid array
-//            	cb = CharBuffer.wrap("\u003f".toCharArray()); //$NON-NLS-1$
-//            }
-//            if ((result = cb.length()) > 0) {
-//                value = cb.array();
-//                count = result;
-//            } else {
-//                count = 0;
-//                value = new char[0];
-//            }
-//        } else {
-//            throw new StringIndexOutOfBoundsException();
-//        }
+        if (encoding == null) {
+            throw new NullPointerException();
+        }
+        // start + length could overflow, start/length maybe MaxInt
+        if (start >= 0 && 0 <= length && length <= data.length - start) {
+            offset = 0;
+            Charset charset = getCharset(encoding);
+
+            int result;
+        	CharBuffer cb;
+            try {
+            	cb = charset.decode(ByteBuffer.wrap(data, start, length));
+            } catch (Exception e) {
+            	// do nothing. according to spec: 
+            	// behavior is unspecified for invalid array
+            	cb = CharBuffer.wrap("\u003f".toCharArray()); //$NON-NLS-1$
+            }
+            if ((result = cb.length()) > 0) {
+                value = cb.array();
+                count = result;
+            } else {
+                count = 0;
+                value = new char[0];
+            }
+        } else {
+            throw new StringIndexOutOfBoundsException();
+        }
     }
 
     /**
@@ -706,27 +709,28 @@ public final class String implements Serializable, Comparable<String>,
         return new String(data, start, length);
     }
 
-//    private Charset defaultCharset() {
-//        if (DefaultCharset == null) {
+    private Charset defaultCharset() {
+        if (DefaultCharset == null) {
 //            String encoding = AccessController
 //                    .doPrivileged(new PriviAction<String>(
 //                            "file.encoding", "ISO8859_1")); //$NON-NLS-1$ //$NON-NLS-2$
-//            // calling System.getProperty() may cause DefaultCharset to be
-//            // initialized
-//            try {
-//                DefaultCharset = Charset.forName(encoding);
-//            } catch (IllegalCharsetNameException e) {
-//                // Ignored
-//            } catch (UnsupportedCharsetException e) {
-//                // Ignored
-//            }
-//
-//            if (DefaultCharset == null) {
-//                DefaultCharset = Charset.forName("ISO-8859-1"); //$NON-NLS-1$
-//            }
-//        }
-//        return DefaultCharset;
-//    }
+        	String encoding = System.getProperty("file.encoding", "UTF-8");
+            // calling System.getProperty() may cause DefaultCharset to be
+            // initialized
+            try {
+                DefaultCharset = Charset.forName(encoding);
+            } catch (IllegalCharsetNameException e) {
+                // Ignored
+            } catch (UnsupportedCharsetException e) {
+                // Ignored
+            }
+
+            if (DefaultCharset == null) {
+                DefaultCharset = Charset.forName("ISO-8859-1"); //$NON-NLS-1$
+            }
+        }
+        return DefaultCharset;
+    }
 
     /**
      * Compares the specified string to this string to determine if the
@@ -817,12 +821,11 @@ public final class String implements Serializable, Comparable<String>,
      * @return the byte array encoding of this string.
      */
     public byte[] getBytes() {
-    	throw new UnsupportedOperationException();
-//        ByteBuffer buffer = defaultCharset().encode(
-//                CharBuffer.wrap(this.value, this.offset, this.count));
-//        byte[] bytes = new byte[buffer.limit()];
-//        buffer.get(bytes);
-//        return bytes;
+        ByteBuffer buffer = defaultCharset().encode(
+                CharBuffer.wrap(this.value, this.offset, this.count));
+        byte[] bytes = new byte[buffer.limit()];
+        buffer.get(bytes);
+        return bytes;
     }
 
     /**
@@ -870,31 +873,30 @@ public final class String implements Serializable, Comparable<String>,
      *             if the encoding is not supported.
      */
     public byte[] getBytes(String encoding) throws UnsupportedEncodingException {
-    	throw new UnsupportedOperationException();
-//        ByteBuffer buffer = getCharset(encoding).encode(
-//                CharBuffer.wrap(this.value, this.offset, this.count));
-//        byte[] bytes = new byte[buffer.limit()];
-//        buffer.get(bytes);
-//        return bytes;
+        ByteBuffer buffer = getCharset(encoding).encode(
+                CharBuffer.wrap(this.value, this.offset, this.count));
+        byte[] bytes = new byte[buffer.limit()];
+        buffer.get(bytes);
+        return bytes;
     }
 
-//    private Charset getCharset(final String encoding)
-//            throws UnsupportedEncodingException {
-//        Charset charset = lastCharset;
-//        if (charset == null || !encoding.equalsIgnoreCase(charset.name())) {
-//            try {
-//                charset = Charset.forName(encoding);
-//            } catch (IllegalCharsetNameException e) {
-//                throw (UnsupportedEncodingException) (new UnsupportedEncodingException(
-//                        encoding).initCause(e));
-//            } catch (UnsupportedCharsetException e) {
-//                throw (UnsupportedEncodingException) (new UnsupportedEncodingException(
-//                        encoding).initCause(e));
-//            }
-//            lastCharset = charset;
-//        }
-//        return charset;
-//    }
+    private Charset getCharset(final String encoding)
+            throws UnsupportedEncodingException {
+        Charset charset = lastCharset;
+        if (charset == null || !encoding.equalsIgnoreCase(charset.name())) {
+            try {
+                charset = Charset.forName(encoding);
+            } catch (IllegalCharsetNameException e) {
+                throw (UnsupportedEncodingException) (new UnsupportedEncodingException(
+                        encoding).initCause(e));
+            } catch (UnsupportedCharsetException e) {
+                throw (UnsupportedEncodingException) (new UnsupportedEncodingException(
+                        encoding).initCause(e));
+            }
+            lastCharset = charset;
+        }
+        return charset;
+    }
 
     /**
      * Copies the specified characters in this string to the character array

@@ -23,6 +23,7 @@ PrimitiveClass* com::cowlark::cowjac::PrimitiveDoubleClassConstant;
 
 ShimClass::ShimClass(Stackframe* F)
 {
+	makeImmutable();
 	m__3cinit_3e_5f_28_29V(F);
 }
 

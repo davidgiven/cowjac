@@ -471,13 +471,14 @@ object Translator extends Object with SootExtensions with Utils
 			ps.c.print("\t::com::cowlark::cowjac::Object* caughtexception;\n")
 			ps.c.print("\n")
 			
-			/* Declare locals that don't need to go in the frame. */
+			/* Declare locals. */
 			
 			for (local <- body.getLocals)
 			{
 				val t = local.getType
+				ps.c.print("\t/* Real type: ", t.toString, " */\n")
 				ps.c.print("\t")
-				translateType(t, ps.c)
+				translateType(Type.toMachineType(t), ps.c)
 				ps.c.print(" j", local.getName, " = 0;\n")
 			}
 			
@@ -549,25 +550,6 @@ object Translator extends Object with SootExtensions with Utils
 						{
 							val n = stringconstants.size
 							stringconstants += (s.value -> n)
-							
-							ps.ch.print("static const jchar scd",
-									String.valueOf(n), "[] = {")
-									
-							var first = true
-							for (c <- s.value)
-							{
-								if (!first)
-									ps.ch.print(", ")
-								else
-									first = false
-									
-								ps.ch.print(String.valueOf(c.toInt))
-							}
-							
-							ps.ch.print("};\n")
-							ps.ch.print("static ::java::lang::String* sc",
-									String.valueOf(n), ";\n")
-							
 							n
 						}
 						else
@@ -672,10 +654,7 @@ object Translator extends Object with SootExtensions with Utils
 				
 				override def caseInstanceOfExpr(v: InstanceOfExpr) =
 				{
-					/* The result of this is a boolean; the pointer we return
-					 * will get implicitly cast to the right type, so we don't
-					 * need to do it explicitly. */
-					ps.c.print("dynamic_cast< ")
+					ps.c.print("!!dynamic_cast< ")
 					translateType(v.getCheckType, ps.c)
 					ps.c.print(" >(")
 					v.getOp.apply(VS)
@@ -727,8 +706,20 @@ object Translator extends Object with SootExtensions with Utils
 				
 				override def caseNewExpr(v: NewExpr) =
 				{
-					ps.c.print("new ")
-					v.getType.apply(NS)
+					val t = v.getType
+					if (t.isInstanceOf[RefType])
+					{
+						val rt = t.asInstanceOf[RefType]
+						ps.c.print("(", className(rt.getSootClass), "::classInit(&F), ")
+						ps.c.print("new ")
+						v.getType.apply(NS)
+						ps.c.print(")")
+					}
+					else
+					{
+						v.getType.apply(NS)
+						ps.c.print(")")
+					}
 				}
 				
 				override def caseNewArrayExpr(v: NewArrayExpr) =
@@ -1234,6 +1225,28 @@ object Translator extends Object with SootExtensions with Utils
 		ps.c.print("\t\tif (!initialised)\n")
 		ps.c.print("\t\t{\n")
 		ps.c.print("\t\t\tinitialised = true;\n")
+		
+		for (sc <- stringconstants)
+		{
+			ps.ch.print("\nstatic const jchar scd", sc._2.toString, "[] = {")
+			if (!sc._1.isEmpty)
+				ps.ch.print(sc._1.map(_.toInt.toString).reduceLeft(_ + ", " + _))
+			ps.ch.print("};\n")
+			ps.ch.print("static ::java::lang::String* sc", sc._2.toString, " = 0;\n")
+			ps.ch.print("\n")
+			
+			ps.c.print("\t\t\t::com::cowlark::cowjac::ScalarArray<jchar>* scda",
+					sc._2.toString, " = new ::com::cowlark::cowjac::ScalarArray<jchar>(",
+					"F, ::com::cowlark::cowjac::PrimitiveCharClassConstant->getArrayType(F), ",
+					sc._1.length.toString, ", (jchar*) scd", sc._2.toString, ");\n")
+			ps.c.print("\t\t\tsc", sc._2.toString, " = new ::java::lang::String;\n")
+			ps.c.print("\t\t\tsc", sc._2.toString, "->makeImmutable();\n")
+			/* This initialises the string with an internal constructor, to avoid
+			 * copying the array (which causes nasty recursion issues during
+			 * startup). */
+			ps.c.print("\t\t\tsc", sc._2.toString, "->m__3cinit_3e_5f_28II_5bC_29V(F, ",
+					"0, ", sc._1.length.toString, ", scda", sc._2.toString, ");\n")
+		}
 		
 		ps.c.print("\t\t\tmarker = new ", className(sootclass), "::Marker();\n")
 		if (sootclass.hasSuperclass)

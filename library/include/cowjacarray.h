@@ -12,6 +12,8 @@ class BaseArray : public java::lang::Object
 {
 public:
 	BaseArray(::java::lang::Class* arrayClass, jint size, jint elementLength);
+	BaseArray(::java::lang::Class* arrayClass, jint size, jint elementLength,
+			void* ptr);
 	virtual ~BaseArray();
 
 	jint length() const
@@ -35,6 +37,8 @@ private:
 	jint _length;
 	jint _elementLength;
 	::java::lang::Class* _class;
+
+	jboolean _external : 1;
 };
 
 template <class T> class PrimitiveArray : public BaseArray
@@ -42,6 +46,11 @@ template <class T> class PrimitiveArray : public BaseArray
 public:
 	PrimitiveArray(::java::lang::Class* arrayClass, jint length):
 		BaseArray(arrayClass, length, sizeof(T))
+	{
+	}
+
+	PrimitiveArray(::java::lang::Class* arrayClass, jint length, void* ptr):
+		BaseArray(arrayClass, length, sizeof(T), ptr)
 	{
 	}
 
@@ -77,6 +86,12 @@ public:
 	ScalarArray(::com::cowlark::cowjac::Stackframe* parentFrame,
 			::java::lang::Class* arrayClass, jint length):
 		PrimitiveArray<T>(arrayClass, length)
+	{
+	}
+
+	ScalarArray(::com::cowlark::cowjac::Stackframe* parentFrame,
+			::java::lang::Class* arrayClass, jint length, void* ptr):
+		PrimitiveArray<T>(arrayClass, length, ptr)
 	{
 	}
 

@@ -8,6 +8,7 @@
 #include "java.lang.Throwable.h"
 #include "java.lang.Float.h"
 #include "java.lang.Double.h"
+#include "java.lang.String.h"
 
 using com::cowlark::cowjac::SystemLock;
 using com::cowlark::cowjac::Stackframe;
@@ -98,14 +99,25 @@ BaseArray::BaseArray(Class* arrayClass, jint length, jint elementLength):
 		_data(new jbyte[length * elementLength]),
 		_length(length),
 		_elementLength(elementLength),
-		_class(arrayClass)
+		_class(arrayClass),
+		_external(false)
 {
 	memset(_data, 0, _length * _elementLength);
 }
 
+BaseArray::BaseArray(Class* arrayClass, jint length, jint elementLength, void* ptr):
+		_data((jbyte*) ptr),
+		_length(length),
+		_elementLength(elementLength),
+		_class(arrayClass),
+		_external(true)
+{
+}
+
 BaseArray::~BaseArray()
 {
-	delete [] _data;
+	if (_external)
+		delete [] _data;
 }
 
 void BaseArray::boundsCheck(Stackframe* pF, jint index) const
@@ -203,6 +215,7 @@ int main(int argc, const char* argv[])
 		= new PrimitiveClass(&frame, "float");
 	com::cowlark::cowjac::PrimitiveDoubleClassConstant
 		= new PrimitiveClass(&frame, "double");
+	java::lang::String::classInit(&frame);
 
 	test::Main::main(&frame, NULL);
 	return 0;
