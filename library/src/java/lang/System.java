@@ -1,9 +1,15 @@
 package java.lang;
 
+import java.io.FileDescriptor;
+import java.io.FileOutputStream;
+import java.io.PrintStream;
 import com.cowlark.cowjac.harmony.Native;
 
 public class System
 {
+	public static PrintStream out = new PrintStream(new FileOutputStream(FileDescriptor.out));
+	public static PrintStream err = new PrintStream(new FileOutputStream(FileDescriptor.err));
+	
 	public static String getProperty(String key)
 	{
 		return "";
