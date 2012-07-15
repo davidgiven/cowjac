@@ -29,6 +29,8 @@ class PrimitiveClass : public ShimClass
 {
 public:
 	PrimitiveClass(Stackframe* F, const char* name);
+
+	jboolean isPrimitive(::com::cowlark::cowjac::Stackframe* F) { return true; }
 };
 
 extern PrimitiveClass* PrimitiveBooleanClassConstant;
@@ -51,6 +53,8 @@ public:
 	{
 		return _element;
 	}
+
+	jboolean isArray(::com::cowlark::cowjac::Stackframe* F) { return true; }
 
 private:
 	::java::lang::Class* _element;
